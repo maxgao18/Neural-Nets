@@ -103,7 +103,7 @@ class QuadraticCost:
     # Returns the error vector for the output layer by d = (a-y)*sig_p(z)
     @staticmethod
     def delta(out, exp, z):
-        return (out-exp)*Sigmoid.func_prime_vec(z)
+        return (out-exp)*Sigmoid.func_deriv(z)
 
 # -- Class defining cross entropy
 class CrossEntropy:

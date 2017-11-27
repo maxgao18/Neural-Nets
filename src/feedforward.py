@@ -77,7 +77,7 @@ class Net:
             grad_b = [gb + dgb for gb, dgb in zip(grad_b, d_grad_b)]
             grad_w = [gw + dgw for gw, dgw in zip(grad_w, d_grad_w)]
 
-        avg_step = (step_size+0.0)/len(mini_batch)
+        avg_step = step_size/(len(mini_batch)+0.0)
 
         self.__biases = [b - avg_step*gb for b, gb in zip(self.__biases, grad_b)]
 
@@ -85,15 +85,15 @@ class Net:
             #L1 Regularization
             self.__weights = [w - avg_step*gw for w, gw in zip(self.__weights, grad_w)]
 
-            reg = lmbda/training_set_size
+            reg = lmbda/(training_set_size+0.0)
             for x in range(len(self.__weights)):
                 for y in range(len(self.__weights[x])):
                     for z in range(len(self.__weights[x][y])):
                         self.__weights[x][y][z] -= fn.sign(self.__weights[x][y][z])*reg
         elif regularization_type == 'L2':
             #L2 Regularization
-            reg = lmbda/training_set_size
-            self.__weights = [(1-step_size*reg)*w-step_size*gw for w, gw in zip (self.__weights, grad_w)]
+            reg = lmbda/(training_set_size+0.0)
+            self.__weights = [(1-step_size*reg)*w-avg_step*gw for w, gw in zip (self.__weights, grad_w)]
         else:
             # Unregularized
             self.__weights = [w-avg_step*gw for w, gw in zip(self.__weights, grad_w)]

@@ -2,7 +2,7 @@ import numpy as np
 import functions as fnc
 
 class RecurrentNet:
-    def __init__(self, layer_sizes, cost = fnc.NegativeLogLikelihood, logisticFunc = fnc.TanH):
+    def __init__(self, layer_sizes, cost = fnc.CrossEntropy, logisticFunc = fnc.Sigmoid):
         self.__n_layers = len(layer_sizes)
         self.__layer_sizes = layer_sizes
         self.__biases = [np.random.randn(s) for s in layer_sizes[1:]]
@@ -23,7 +23,8 @@ class RecurrentNet:
             data = self.__logistic_func.func(data)
             curr_hs.append(np.copy(data))
         data = np.dot(self.__weights[self.__n_layers-2], data) + self.__biases[self.__n_layers-2]
-        data = fnc.SoftMax.func(data)
+        #data = fnc.SoftMax.func(data)
+        data = fnc.Sigmoid.func(data)
 
         # Update past hidden state
         self.__past_hidden_state = curr_hs
@@ -42,8 +43,11 @@ class RecurrentNet:
             activations_prime.append(self.__logistic_func.func_deriv(z))
             z = self.__logistic_func.func(z)
         z = np.dot(self.__weights[self.__n_layers-2], z) + self.__biases[self.__n_layers-2]
-        activations.append(fnc.SoftMax.func(z))
-        activations_prime.append(fnc.SoftMax.func_deriv(z))
+        #activations.append(fnc.SoftMax.func(z))
+        #activations_prime.append(fnc.SoftMax.func_deriv(z))
+
+        activations.append(fnc.Sigmoid.func(z))
+        activations_prime.append(fnc.Sigmoid.func_deriv(z))
 
         delta = self.__cost.delta(activations[self.__n_layers-1], exp, z)
 
@@ -96,15 +100,18 @@ class RecurrentNet:
         for x in range(epochs):
             loss = 0
             mini_batches = []
-            st = np.random.randint(0, n_data%mini_batch_size)
-            for n in range(st, n_data-mini_batch_size+st, mini_batch_size):
+            st = 0
+            if not n_data==mini_batch_size:
+                st = np.random.randint(0, n_data%mini_batch_size)
+            for n in range(st, n_data-mini_batch_size+st+1, mini_batch_size):
                 mini_batches.append(training_data[n:n+mini_batch_size])
             for mini_batch in mini_batches:
                 loss += self.__update_mini_batch(mini_batch, step_size)
-
             self.clear_mem()
 
-            print ("epoch ", x, " loss ", loss)
+            #print ("epoch ", x, " loss ", loss)
+            if x % 500 == 0:
+                print ("epoch ", x, " loss ", loss)
 
     def set_weights_biases(self, weights, biases, weights_past):
         if not len(weights) == len(biases):
@@ -207,7 +214,7 @@ def read_w_b_from_file (filename):
         layer = np.zeros(layer_sizes[x])
         for y in range(layer_sizes[x]):
             counter += 1
-            layer[x] = float(arr[counter])
+            layer[y] = float(arr[counter])
         biases.append(layer)
     for x in range(1, n_layers-1):
         layer = np.zeros((layer_sizes[x], layer_sizes[x]))
@@ -233,55 +240,3 @@ def to_one_hot (ind, len):
     arr = np.zeros(len)
     arr[ind] = 1
     return arr
-
-def rand_str (net, t_len, char_to_int, int_to_char, start = None):
-    num_unique_chars = len(int_to_char)
-    c_len = 0
-    if not start:
-        ind = np.random.randint(0, t_len-1)
-        start = int_to_char[ind]
-        c_len = 1
-    else:
-        for x in range(len(start)-1):
-            arr = to_one_hot(char_to_int[start[x]], num_unique_chars)
-            net.forward_pass(arr)
-        c_len = len(start)-1
-
-    for x in range(c_len, t_len):
-        ind = char_to_int[start[x-1]]
-        nxt = find_max_index(net.forward_pass(to_one_hot(ind, num_unique_chars)))
-        start += int_to_char[nxt]
-
-    return start
-
-'''
-data = open('Nasdaq.txt', 'r').read();
-print (float('123,456'))
-print data
-unique_chars = list(set(data))
-data_size = len(data)
-num_unique_chars = len(unique_chars)
-print ("size, %d, unique, %d" % (data_size, num_unique_chars))
-
-char_to_int = { ch:i for i, ch in enumerate(unique_chars)}
-int_to_char = { i:ch for i, ch in enumerate(unique_chars)}
-
-test = []
-exp = []
-for x in range(data_size-1):
-    i1 = char_to_int[data[x]]
-    test.append(to_one_hot(i1, num_unique_chars))
-    i2 = char_to_int[data[x+1]]
-    exp.append(to_one_hot(i2, num_unique_chars))
-
-#w, b, wp = read_w_b_from_file("RNNtest.txt")
-
-net = RecurrentNet([num_unique_chars, 20, 20, 20, num_unique_chars])
-
-#print(net.set_weights_biases(w, b, wp))
-
-#net.sgd(test, exp, 10, 200, .0001)
-
-#write_to_file(net, "RNNtest.txt")
-print (rand_str(net, 100, char_to_int, int_to_char, "big shaq"))
-print (rand_str(net, 100, char_to_int, int_to_char, "bruv"))'''
