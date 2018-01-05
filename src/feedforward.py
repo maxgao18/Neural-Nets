@@ -4,7 +4,7 @@ import functions as fn
 import numpy as np
 
 # -- Class for the neural network
-class Net:
+class FeedforwardNet:
     def __init__(self, layer_sizes, cost=fn.CrossEntropy, logistic_func=fn.Sigmoid):
         self.__layer_sizes = layer_sizes
         self.__n_layers = len(layer_sizes)

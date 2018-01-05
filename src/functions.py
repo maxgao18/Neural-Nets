@@ -1,12 +1,9 @@
 import numpy as np
+from abc import abstractstaticmethod, abstractmethod
 
 # Returns -1 if number is negative, 1 if positive, 0 if 0
 def sign (num):
-    if num < 0:
-        return -1
-    elif num > 0:
-        return 1
-    return 0
+    return 1 if num > 0 else 0
 
 # -- TanH logistic function
 class TanH:
@@ -19,7 +16,6 @@ class TanH:
     @staticmethod
     def func_deriv(a):
         return 1 - TanH.func(a)**2
-
 
 # -- Class defining the sigmoid activation function
 class Sigmoid:
@@ -51,7 +47,6 @@ class SoftMax:
             d[x] = (s - a[x]) / s ** 2
         return d
 
-# NEED TO FIX
 class LeakyReLU:
     @staticmethod
     def func(a):
@@ -68,15 +63,37 @@ class LeakyReLU:
     def func_deriv(a):
         if type(a) is np.ndarray:
             for x in range(len(a)):
-                if a[x] < 0:
-                    a[x] = 0.001
-                else:
-                    a[x] = 1
+                a[x] = 1 if a[x] > 0 else 0.001
         else:
             if a < 0:
                 return 0.001
             return 1
         return a
+
+# -- RELU activation function
+class ReLU:
+    @staticmethod
+    def func(a):
+        if type(a) is np.ndarray:
+            for x in range(len(a)):
+                a[x] = max(0, a[x])
+        else:
+            if a < 0:
+                a = 0
+        return a
+
+    @staticmethod
+    def func_deriv(a):
+        if type(a) is np.ndarray:
+            for x in range(len(a)):
+                a[x] = 1 if a[x] > 0 else 0
+        else:
+            if a < 0:
+                return 0
+            return 1
+        return a
+
+
 
 # -- Class defining quadratic cost
 class QuadraticCost:
@@ -102,8 +119,8 @@ class QuadraticCost:
 
     # Returns the error vector for the output layer by d = (a-y)*sig_p(z)
     @staticmethod
-    def delta(out, exp, z):
-        return (out-exp)*Sigmoid.func_deriv(z)
+    def delta(a, y, z):
+        return (a-y)*Sigmoid.func_deriv(z)
 
 # -- Class defining cross entropy
 class CrossEntropy:
@@ -129,8 +146,8 @@ class CrossEntropy:
 
     # Returns the error vector for the output layer by d = a-y
     @staticmethod
-    def delta(out, exp, z):
-        return (out-exp)
+    def delta(a, y, z):
+        return (a-y)
 
 # -- Cost function
 class NegativeLogLikelihood:
