@@ -72,13 +72,17 @@ class FeedforwardNet:
         grad_b = [np.zeros(l) for l in self.__layer_sizes[1:]]
         grad_w = [np.zeros((cl, pl)) for pl, cl in zip(self.__layer_sizes[:self.__n_layers-1], self.__layer_sizes[1:])]
 
+        # Calculate the gradients for the mini-batch
         for i, o in mini_batch:
             d_grad_b, d_grad_w = self.__back_prop(i, o)
             grad_b = [gb + dgb for gb, dgb in zip(grad_b, d_grad_b)]
             grad_w = [gw + dgw for gw, dgw in zip(grad_w, d_grad_w)]
 
+        # Since a "mini_batch_size" number of gradients are calculated, multiply by step size and divide by the number
+        # of cases (average gradient)
         avg_step = step_size/(len(mini_batch)+0.0)
 
+        # No regularization for biases
         self.__biases = [b - avg_step*gb for b, gb in zip(self.__biases, grad_b)]
 
         if regularization_type == 'L1':
@@ -93,12 +97,12 @@ class FeedforwardNet:
         elif regularization_type == 'L2':
             #L2 Regularization
             reg = lmbda/(training_set_size+0.0)
-            self.__weights = [(1-step_size*reg)*w-avg_step*gw for w, gw in zip (self.__weights, grad_w)]
+            self.__weights = [(1-step_size*reg)*w-step_size*gw for w, gw in zip (self.__weights, grad_w)]
         else:
             # Unregularized
             self.__weights = [w-avg_step*gw for w, gw in zip(self.__weights, grad_w)]
 
-    # Returns fraction correct by testing it against the neural net
+    # Returns the fraction of test cases correctly guessed by the neural net for "test_data"
     def evaluate(self, test_data):
         n_tests = len(test_data)
         tests = [0 for x in range(n_tests)]
@@ -130,8 +134,15 @@ class FeedforwardNet:
         return correct / n_tests
 
     # Performs SGD to network
+    # Parameters:
+    # epochs - number of times to train network with on the entire training set
+    # mini_batch_size - how large each random batch of test cases should be before performing back propagation
+    # training_inputs - a list of inputs (1D vectors) for the network
+    # expected_outputs - a list of expected outputs (1D vectors) for the network, in the order of th training inputs
+    # step_size - step size to be used while performing SGD
     def stochastic_gradient_descent(self, epochs, mini_batch_size, training_inputs, expected_outputs,
-                                    step_size, lmbda, test_input=None, test_output=None):
+                                    step_size, lmbda=0, regularization_type=None, test_input=None, test_output=None):
+        # Bind input with its expected output
         training_set_size = len(training_inputs)
         training_data = []
         for t in range(len(training_inputs)):
@@ -139,22 +150,24 @@ class FeedforwardNet:
         if len(training_data) == 0:
             return
 
+        # If validation data exists, do the same with the validation set
         test_data = []
         if test_input:
             for i, o in zip(test_input, test_output):
                 test_data.append([i, o])
 
+        # Perform SGD
         for iters in range(epochs):
             random.shuffle(training_data)
             mini_batches = [training_data[curr:curr+mini_batch_size] for curr in
                             range(0, len(training_data), mini_batch_size)]
             for batch in mini_batches:
-                self.__update_net_weights_biases(batch, step_size, lmbda, training_set_size, 'L2')
+                self.__update_net_weights_biases(batch, step_size, lmbda, training_set_size, regularization_type)
 
             if test_input:
-                print("Epoch", iters+1, " percent correct", self.evaluate(test_data))
+                print("Epoch:", iters+1, ", Percent correct:", self.evaluate(test_data))
             else:
-                print("Epoch", iters+1, " percent correct", self.evaluate(mini_batches[0]))
+                print("Epoch:", iters+1, ", Percent correct:", self.evaluate(mini_batches[0]))
 
     # Returns all weights in the neural network (3D Array)
     def get_weights(self):
@@ -164,26 +177,30 @@ class FeedforwardNet:
     def get_biases(self):
         return self.__biases
 
+    # Returns the layer sizes for the network
     def get_layer_sizes(self):
         return self.__layer_sizes
 
+    # Sets the network objects weights and biases as long as they are formatted correctly
+    # Returns failure message if improper array sizes or returns 1D array of layer sizes if
+    # the loading of the network is successful
     def set_weights_biases (self, weights, biases):
         if not len(weights) == len(biases):
-            return "failed"
+            return "Failed to set network due to improper weight and bias array sizes"
         n_layers = len(weights) + 1
         layer_sizes = []
         layer_sizes.append(len(weights[0][0]))
         for w in weights[0]:
             if not len(w) == layer_sizes[0]:
-                return "failed"
+                return "Failed to set network due to improper weight and bias array sizes"
         for l, b, n in zip(weights, biases, range(0, n_layers-1)):
             if len(l) == len(b):
                 layer_sizes.append(len(b))
                 for w in l:
                     if not len(w) == layer_sizes[n]:
-                        return "failed"
+                        return "Failed to set network due to improper weight and bias array sizes"
             else:
-                return "failed"
+                return "Failed to set network due to improper weight and bias array sizes"
         self.__n_layers = n_layers
         self.__weights = weights
         self.__biases = biases
