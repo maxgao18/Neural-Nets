@@ -11,5 +11,9 @@ Currently, I am working on the back propagation behind convolutional neural netw
 My ultimate goal is to learn how different types of neural networks work and the math behind them, and how to improve on current models.
 
 
-System Requirements:
-numpy
+System Requirements: numpy
+
+Acknowledgements: 
+http://neuralnetworksanddeeplearning.com/
+http://deeplearning.net/
+https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/
