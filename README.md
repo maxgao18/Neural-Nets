@@ -13,7 +13,7 @@ My ultimate goal is to learn how different types of neural networks work and the
 
 System Requirements: numpy
 
-Acknowledgements: 
-http://neuralnetworksanddeeplearning.com/
-http://deeplearning.net/
+Acknowledgements:   
+http://neuralnetworksanddeeplearning.com/  
+http://deeplearning.net/  
 https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/
