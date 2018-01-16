@@ -3,9 +3,9 @@
 **Project**  
 This project contains different neural networks I have worked on, written in Python.
 
-The file "functions.py" contains the non-linear functions such as sigmoid and tanh as well as various cost functions like cross-entropy.
+The file *functions.py* contains the non-linear functions such as sigmoid and tanh as well as various cost functions like cross-entropy.
 
-As to date, I have created a feedforward neural network *feedforward.py* and a recurrent neural network *recurrent.py* and a convolutional neural network *convolutional.py* without the use of machine learning libraries such as Tensorflow. The feedforward neural network also has L1 and L2 regularization implemented.
+As to date, I have created a feedforward (fully dense) neural network *feedforward.py*, a recurrent neural network *recurrent.py*, and a convolutional neural network *convolutional.py* without the use of machine learning libraries such as Tensorflow. The feedforward neural network also has L1 and L2 regularization implemented.
 
 **Files used for CNN**  
 The files *kernel.py, dense_layer.py, conv_layer.py* are currently used by the convolutional neural network, which uses a leaky relu activation function. If you are interested in looking at my code, I have provided comments explaining the variables used in many functions and the purpose of each function in the individual python files.
