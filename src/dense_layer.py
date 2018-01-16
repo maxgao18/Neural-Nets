@@ -1,79 +1,85 @@
 import numpy as np
-import functions as fn
 
-class DenseLayer:# -- Class for the dense layer
+# Makes a 3D np array into a 1D np array
+def flatten_image(image):
+    l = np.array([])
+    for x in image:
+        l = np.concatenate((l, x.ravel()))
+
+    image = l.ravel()
+    return image
+
+
+# leaky relu function
+def func (z):
+    if isinstance(z, float) or isinstance(z, int):
+        if z > 0:
+            return z
+        else:
+            return 0.1*z
+
+    for i, zi in enumerate(z):
+        z[i] = func(zi)
+    return z
+
+def func_deriv(z):
+    if isinstance(z, float) or isinstance(z, int):
+        if z > 0:
+            return 1
+        else:
+            return 0.1
+
+    for i, zi in enumerate(z):
+        z[i] = func_deriv(zi)
+    return z
+
+class DenseLayer:
     # Args:
-    #   layer_shape (tuple): a 2-tuple (number of neurons on current layer, number of neurons on previous layer)
-    def __init__(self, layer_shape, logistic_func="sig", weights=None, biases=None):
+    #   layer_shape - a 2-tuple of ints (number of neurons on current layer, number of neurons on previous layer)
+    #   weights (optional) - a 2D np array of the weights
+    #   biases (optional) a 1D np array of the biases
+    def __init__(self, layer_shape, weights=None, biases=None):
         self.layer_shape = layer_shape
-
-        if logistic_func=="sig":
-            self.logistic_func = fn.Sigmoid
-        elif logistic_func=="relu":
-            self.logistic_func = fn.ReLU
-        elif logistic_func=="leakyrelu":
-            self.logistic_func = fn.LeakyReLU
-        elif logistic_func=="tanh":
-            self.logistic_func = fn.TanH
-        elif logistic_func=="softmax":
-            self.logistic_func = fn.SoftMax
-
-        # Weights is a 2D list w[x][y] where x is the neuron number in the current layer and
-        # y is the neuron number on the previous layer
         if weights is not None:
             self.weights = weights
         else:
             self.weights = np.random.randn(layer_shape[0], layer_shape[1])
 
-        # Biases is a list biases for each neuron
         if biases is not None:
             self.biases = biases
         else:
             self.biases = np.random.randn(layer_shape[0])
 
-    # Calculates the activation of the layer given a list of activations
-    # Args:
-    #   activations (1D np array): a np array with the activations in the previous layer
-    def feed_forward(self, activations):
-        return self.logistic_func(np.dot(self.weights, activations) + self.biases)
+    # Similar to feed forward but without squashing
+    def get_activations(self, input_activations):
+        return np.dot(self.weights, input_activations) + self.biases
 
-    # Returns all weights in the layer (2D Array)
-    def get_all_weights(self):
+    # Feeds the input through the layer and uses leaky relu as an logistic function
+    # Args:
+    #   input_activations - a 1D np array of the previous activations
+    def feed_forward(self, input_activations):
+        return func(self.get_activations(input_activations))
+
+    # Returns the gradients for the weights, biases, and the deltas for the previous layer
+    def backprop (self, z_activations, deltas):
+        if len(z_activations.shape) == 3:
+            z_activations = flatten_image(z_activations)
+        prevDeltas = np.dot(self.weights.transpose(), deltas) * func_deriv(z_activations)
+        biasDeltas = deltas
+        weightDeltas = np.dot(np.array([deltas]).transpose(), np.array([func(z_activations)]))
+
+        return weightDeltas, biasDeltas, prevDeltas
+
+    # Updates layers parameters
+    # Args:
+    #   d_weights - 2D np array determining how much to change the weights by
+    #   d_biases - 1D np array determining how much to change the biases by
+    def update(self, d_weights, d_biases):
+        self.weights += d_weights
+        self.biases += d_biases
+
+    def get_weights(self):
         return self.weights
 
-    # Returns all biases in the layer
-    def get_all_biases(self):
+    def get_biases(self):
         return self.biases
-
-    # Returns weights in the layer connecting to a neuron (1D Array)
-    def get_weights(self, index):
-        return self.weights[index]
-
-    # Returns all biases in the layer
-    def get_biases(self, index):
-        return self.biases[index]
-
-    # Returns layer shape of network
-    def get_layer_shape(self):
-        return self.layer_shape
-
-    # Returns the total number of neurons
-    def get_num_neurons(self):
-        return self.layer_shape[0]
-
-    # Sets the weights and biases
-    # Args:
-    #   weights (2D np array): a np array of weights. Size of weights expected to be (number of neurons on current
-    #       layer, number of neurons on previous layer)
-    #   biases (1D np array): a np array of biases. Size of biases expected to be (number of neurons on current layer)
-    # Returns:
-    #   the shape of the layer created upon success
-    #   error message upon failure
-    def set_weights_biases (self, weights, biases):
-        # Check that arrays are compatable
-        if not len(weights) == len(biases):
-            return "Failed to set parameters due to variance in weight and bias array sizes"
-        self.weights = weights
-        self.biases = biases
-        self.layer_shape = (len(biases), len(weights[0]))
-        return self.layer_shape
