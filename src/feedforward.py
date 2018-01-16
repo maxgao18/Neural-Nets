@@ -5,6 +5,10 @@ import numpy as np
 
 # -- Class for the neural network
 class FeedforwardNet:
+    # Args:
+    #   layer_sizes (list) - list specifying how many neurons each layer should have
+    #   cost (cost function) optional - which cost function should be used (quad cost or cross entropy)
+    #   logistic_func (squashing function) optional - which squashing function should be used for the network
     def __init__(self, layer_sizes, cost=fn.CrossEntropy, logistic_func=fn.Sigmoid):
         self.__layer_sizes = layer_sizes
         self.__n_layers = len(layer_sizes)
@@ -25,10 +29,15 @@ class FeedforwardNet:
         self.__weights = [np.random.randn(cl, pl)/np.sqrt(cl) for pl, cl in zip(self.__layer_sizes[:self.__n_layers-1], self.__layer_sizes[1:])]
 
     # Returns next activation, the z value
+    # Args:
+    #   curr_activations (np array) - a 1D np array of the current activations
+    #   curr_layer (int) - the current layer number (-1) (actual_curr_layer-1)
     def __next_activation(self, curr_activations, curr_layer):
         return np.dot(self.__weights[curr_layer], curr_activations) + self.__biases[curr_layer]
 
     # Returns output of neural net given an input
+    # Args:
+    #   input_layer (np array) - 1D np array of inputs
     def feed_forward (self, input_layer):
         for l in range(0, self.__n_layers-1):
             input_layer = self.__logistic_func.func(self.__next_activation(input_layer, l))
@@ -36,11 +45,14 @@ class FeedforwardNet:
 
     # Returns nabla_b and nabla_w, gradients of biases and weights by back propagation
     # Error (l) = hadamard(weights_transpose(l+1)*error(l+1), sig_prime(activations(l))
-    def __back_prop(self, data, expected):
-        z = data
-        z_s = [data]
+    # Args:
+    #   network_input (np array) - the input for the network
+    #   expected_out (np array) - the expected output for that input
+    def __back_prop(self, network_input, expected_out):
+        z = network_input
+        z_s = [network_input]
         # 2D arrays storing activations of each neuron on each layer
-        activation_vecs = [data]
+        activation_vecs = [network_input]
         activation_vecs_prime = [np.zeros(self.__layer_sizes[0])]
         for l in range(0, self.__n_layers-1):
             z = self.__next_activation(z, l)
@@ -56,7 +68,7 @@ class FeedforwardNet:
         grad_w = [np.zeros(w.shape) for w in self.__weights]
 
         # Initial error hadamard(d_cost, sig_prime)
-        error = self.__cost.delta(activation_vecs[self.__n_layers-1], expected, z_s[self.__n_layers-1])
+        error = self.__cost.delta(activation_vecs[self.__n_layers-1], expected_out, z_s[self.__n_layers-1])
 
         grad_b[self.__n_layers-2] = error
         grad_w[self.__n_layers-2] = np.dot(np.array([error]).transpose(), np.array([activation_vecs[self.__n_layers-2]]))
@@ -68,6 +80,12 @@ class FeedforwardNet:
         return grad_b, grad_w
 
     # Updates networks weights and biases based on gradients, lambda, and size of training set through regularization
+    # Args:
+    #   mini_batch (list) - the mini batch to be used to update the network
+    #   step_size (float) - the step size, which determines how much the weights and biases should be modified
+    #   lmbda (float) - a regularization variable
+    #   training_set_size (int) - the total number of training inputs in the training set
+    #   regularization_type (string) optional - which regularization should be used (None, "L1", "L2")
     def __update_net_weights_biases (self, mini_batch, step_size, lmbda, training_set_size, regularization_type=None):
         grad_b = [np.zeros(l) for l in self.__layer_sizes[1:]]
         grad_w = [np.zeros((cl, pl)) for pl, cl in zip(self.__layer_sizes[:self.__n_layers-1], self.__layer_sizes[1:])]
@@ -103,6 +121,8 @@ class FeedforwardNet:
             self.__weights = [w-avg_step*gw for w, gw in zip(self.__weights, grad_w)]
 
     # Returns the fraction of test cases correctly guessed by the neural net for "test_data"
+    # Args:
+    #   test_data (list of tuples) - a list of tuples (network_input, expected_output)
     def evaluate(self, test_data):
         n_tests = len(test_data)
         tests = [0 for x in range(n_tests)]
@@ -134,12 +154,12 @@ class FeedforwardNet:
         return correct / n_tests
 
     # Performs SGD to network
-    # Parameters:
-    # epochs - number of times to train network with on the entire training set
-    # mini_batch_size - how large each random batch of test cases should be before performing back propagation
-    # training_inputs - a list of inputs (1D vectors) for the network
-    # expected_outputs - a list of expected outputs (1D vectors) for the network, in the order of th training inputs
-    # step_size - step size to be used while performing SGD
+    # Args:
+    #   epochs - number of times to train network with on the entire training set
+    #   mini_batch_size - how large each random batch of test cases should be before performing back propagation
+    #   training_inputs - a list of inputs (1D vectors) for the network
+    #   expected_outputs - a list of expected outputs (1D vectors) for the network, in the order of th training inputs
+    #   step_size - step size to be used while performing SGD
     def stochastic_gradient_descent(self, epochs, mini_batch_size, training_inputs, expected_outputs,
                                     step_size, lmbda=0, regularization_type=None, test_input=None, test_output=None):
         # Bind input with its expected output
