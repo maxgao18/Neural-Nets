@@ -82,9 +82,15 @@ class Convolutional:
                 elif lt == "dense":
                     self.layers.append(DenseLayer(layer_shape=ls[0]))
 
+    # Returns the next activation without squashing it
+    # Args:
+    #   z_activations - (np arr) the current activations
+    #   layer - the next layer to be used
     def next_activation(self, z_activations, layer):
         return layer.get_activations(z_activations)
 
+    # Feeds an input through the network, returning the output
+    # Args: network_input - (np arr) the input
     def feed_forward(self, network_input):
         is_conv = False
         if self.layer_types[0] == "conv":
@@ -103,6 +109,10 @@ class Convolutional:
 
         return network_input
 
+    # This function calculates the gradients for one training example
+    # Args:
+    #   network_input - (np arr) the input being used
+    #   expected_output - (np arr) the expected output
     def backprop(self, network_input, expected_output):
         curr_z = network_input
         z_activations = [network_input]
@@ -121,9 +131,11 @@ class Convolutional:
             z_activations.append(deepcopy(curr_z))
             curr_z = func(curr_z)
 
+        # Store derivatives and activation for output layer
         squashed_activations_deriv = func_deriv(deepcopy(curr_z))
         squashed_activations = curr_z
 
+        # Errors for the last layer
         delta = self.cost_func.delta(squashed_activations,
                                      squashed_activations_deriv,
                                      expected_output)
@@ -135,6 +147,7 @@ class Convolutional:
         delta_w = []
         delta_b = []
 
+        # Append all the errors for each layer
         for lt, lyr, zprev in reversed(zip(self.layer_types, self.layers, z_activations[:-1])):
             if lt is "conv" and not is_conv:
                 delta = convert_to_image(delta, lyr.get_output_shape())
@@ -160,12 +173,11 @@ class Convolutional:
             gradient_w += dgw
             gradient_b += dgb
 
+        # Average the gradients
         gradient_w *= step_size/(len(mini_batch)+0.00)
         gradient_b *= step_size/(len(mini_batch)+0.00)
 
-        # print(gradient_b)
-        # print("PRINTING GB")
-
+        # Update weights and biases in opposite direction of gradients
         for gw, gb, lyr in zip(gradient_w, gradient_b, self.layers):
             lyr.update(-gw, -gb)
 
@@ -189,12 +201,10 @@ class Convolutional:
         for inp, outp in zip(training_inputs, expected_outputs):
             training_set.append((inp, outp))
 
+        # Train
         for ep in range(epochs):
             shuffle(training_set)
             for x in range(0, len(training_set), mini_batch_size):
                 self.update_network(training_set[x:x+mini_batch_size], step_size)
+            # Update with progress
             print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
-
-
-
-

@@ -12,6 +12,7 @@ def func (z):
         z[i] = func(zi)
     return z
 
+# leaky relu derivative
 def func_deriv(z):
     if isinstance(z, float) or isinstance(z, int):
         if z > 0:
