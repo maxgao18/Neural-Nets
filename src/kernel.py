@@ -48,6 +48,7 @@ def prev_errors (in_shape, out_shape, zs, weights, bias, deltas):
             # Loop for each part of the kernel
             for wy, dpy in enumerate(range(y, y+kernelHeight)):
                 for wx, dpx in enumerate(range(x, x+kernelLength)):
+
                     deltasPrev[dpy][dpx] += d*weights[wy][wx]*func_deriv(zs[dpy][dpx])
 
     # Loop kernel across image to calculate grad_w
@@ -117,7 +118,7 @@ class Kernel:
             weightDeltas.append(w_err)
             biasDelta += b_err
 
-        return weightDeltas, biasDelta, deltaPrevs
+        return np.array(weightDeltas), np.array(biasDelta), np.array(deltaPrevs)
 
     # This method takes in a feature map and slides it across an image
     # Returns:

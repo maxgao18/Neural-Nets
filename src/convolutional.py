@@ -2,6 +2,7 @@ import numpy as np
 from conv_layer import ConvLayer
 from kernel import Kernel
 from dense_layer import DenseLayer
+from deconv_layer import DeconvLayer
 from random import shuffle
 from copy import deepcopy
 
@@ -63,9 +64,10 @@ class QuadCost:
 
 class Convolutional:
     # Args:
-    #   layer_types - (list) a list of strings indicating the layer type. "conv" or "dense"
+    #   layer_types - (list) a list of strings indicating the layer type. "conv", "deconv", or "dense"
     #   layer_shapes - (list of list of tuples) a list of the shapes for each layer
-    #                       conv layers - [image shape, kernel shape]
+    #                       conv layers - [input shape, kernel shape]
+    #                       deconv layers - [input shape, output shape, kernel shape]
     #                       dense layers - [layer shape]
     def __init__(self, layer_types, layer_shapes, layers=None, cost_func=QuadCost):
         self.layer_types = layer_types
@@ -79,6 +81,8 @@ class Convolutional:
             for lt, ls in zip(layer_types, layer_shapes):
                 if lt == "conv":
                     self.layers.append(ConvLayer(image_shape=ls[0], kernel_shape=ls[1]))
+                elif lt == "deconv":
+                    self.layers.append(DeconvLayer(input_shape=ls[0], output_shape=ls[1], kernel_shape=ls[2]))
                 elif lt == "dense":
                     self.layers.append(DenseLayer(layer_shape=ls[0]))
 
@@ -93,7 +97,7 @@ class Convolutional:
     # Args: network_input - (np arr) the input
     def feed_forward(self, network_input):
         is_conv = False
-        if self.layer_types[0] == "conv":
+        if self.layer_types[0] == "conv" or self.layer_types[0] == "deconv":
             is_conv = True
             if len(network_input.shape) == 2:
                 network_input = np.array([network_input])
@@ -101,7 +105,7 @@ class Convolutional:
 
         for lt, lyr in zip(self.layer_types, self.layers):
             # Squash to 1D np array
-            if lt is not "conv" and is_conv:
+            if lt is not "conv" and lt is not "deconv" and is_conv:
                 is_conv = False
                 network_input = flatten_image(network_input)
 
@@ -118,12 +122,12 @@ class Convolutional:
         z_activations = [network_input]
 
         is_conv = False
-        if self.layer_types[0] is "conv":
+        if self.layer_types[0] is "conv" or self.layer_types[0] == "deconv":
             is_conv = True
 
         for lt, lyr in zip(self.layer_types, self.layers):
             # Squash to 1D np array
-            if lt is not "conv" and is_conv:
+            if lt is not "conv" and lt is not "deconv" and is_conv:
                 is_conv = False
                 curr_z = flatten_image(curr_z)
 
@@ -141,7 +145,8 @@ class Convolutional:
                                      expected_output)
 
         is_conv = True
-        if self.layer_types[self.num_layers-1] is not "conv":
+        if self.layer_types[self.num_layers-1] is not "conv" \
+                and self.layer_types[self.num_layers-1] is not "deconv":
             is_conv = False
 
         delta_w = []
@@ -149,9 +154,10 @@ class Convolutional:
 
         # Append all the errors for each layer
         for lt, lyr, zprev in reversed(zip(self.layer_types, self.layers, z_activations[:-1])):
-            if lt is "conv" and not is_conv:
-                delta = convert_to_image(delta, lyr.get_output_shape())
-                is_conv = True
+            if lt is "conv" or lt is "deconv":
+                if not is_conv:
+                    delta = convert_to_image(delta, lyr.get_output_shape())
+                    is_conv = True
 
             dw, db, dlt = lyr.backprop(zprev, delta)
             delta_w.insert(0, dw)
