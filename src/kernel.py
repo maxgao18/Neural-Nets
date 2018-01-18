@@ -38,30 +38,32 @@ def prev_errors (in_shape, out_shape, zs, weights, bias, deltas):
     kernelLength = len(weights[0])
 
     weightDeltas = np.zeros((kernelLength,kernelHeight))
-    biasDelta = 0
 
     # Loop for each step
     for y in range(out_shape[0]):
         for x in range(out_shape[1]):
             d = deltas[y][x]
 
-            # Loop for each part of the kernel
-            for wy, dpy in enumerate(range(y, y+kernelHeight)):
-                for wx, dpx in enumerate(range(x, x+kernelLength)):
+            deltasPrev[y:y+kernelHeight,x:x+kernelLength] += d*np.multiply(weights,func_deriv(zs[y:y+kernelHeight,x:x+kernelLength]))
 
-                    deltasPrev[dpy][dpx] += d*weights[wy][wx]*func_deriv(zs[dpy][dpx])
+            # --- Old method
+            # # Loop for each part of the kernel
+            # for wy, dpy in enumerate(range(y, y+kernelHeight)):
+            #     for wx, dpx in enumerate(range(x, x+kernelLength)):
+            #         deltasPrev[dpy][dpx] += d*weights[wy][wx]*func_deriv(zs[dpy][dpx])
 
     # Loop kernel across image to calculate grad_w
     for y in range(out_shape[0]-kernelHeight+1):
         for x in range(out_shape[1]-kernelLength+1):
-            # Calculate for one convolution
-            for wy in range(kernelHeight):
-                for wx in range(kernelLength):
-                    weightDeltas[wy][wx] += func(zs[y+wy][x+wx])*deltas[y+wy][x+wx]
+            weightDeltas += np.multiply(zs[y:y+kernelHeight, x:x+kernelLength], deltas[y:y+kernelHeight, x:x+kernelLength])
 
-    for dp in deltasPrev:
-        for d in dp:
-            biasDelta+=d
+            #--- Old method
+            # # Calculate for one convolution
+            # for wy in range(kernelHeight):
+            #     for wx in range(kernelLength):
+            #         weightDeltas[wy][wx] += func(zs[y+wy][x+wx])*deltas[y+wy][x+wx]
+
+    biasDelta = np.sum(deltas)
 
     return weightDeltas, biasDelta, deltasPrev
 
@@ -94,7 +96,7 @@ class Kernel:
         new_image = np.zeros(new_image_size)
         for y in range(new_image_size[0]):
             for x in range(new_image_size[1]):
-                new_image[y][x] += np.sum(np.multiply(image_list[:,y:y+self.feature_map_height,x:x+self.feature_map_length], self.weights)) + self.bias
+                new_image[y][x] = np.sum(np.multiply(image_list[:,y:y+self.feature_map_height,x:x+self.feature_map_length], self.weights)) + self.bias
         return new_image
 
     # Returns the weight, bias, and delta errors given a current set of deltas
