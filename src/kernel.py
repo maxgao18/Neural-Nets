@@ -90,14 +90,11 @@ class Kernel:
     # Args:
     #   image_list: a list of 2D images (also known as the image)
     def use_kernel (self, image_list):
-        num_images = len(image_list)
         new_image_size = (len(image_list[0]) - self.feature_map_height + 1, len(image_list[0][0]) - self.feature_map_length + 1)
         new_image = np.zeros(new_image_size)
-        for i in range(num_images):
-            new_image += self.use_feature_map(self.weights[i], image_list[i], new_image_size)
         for y in range(new_image_size[0]):
             for x in range(new_image_size[1]):
-                new_image[y][x] = new_image[y][x]+ self.bias
+                new_image[y][x] += np.sum(np.multiply(image_list[:,y:y+self.feature_map_height,x:x+self.feature_map_length], self.weights)) + self.bias
         return new_image
 
     # Returns the weight, bias, and delta errors given a current set of deltas
@@ -119,18 +116,6 @@ class Kernel:
             biasDelta += b_err
 
         return np.array(weightDeltas), np.array(biasDelta), np.array(deltaPrevs)
-
-    # This method takes in a feature map and slides it across an image
-    # Returns:
-    #   a 2D array which is the new output image
-    def use_feature_map (self, feature_map, image, new_image_size):
-        new_image = np.zeros(new_image_size)
-        for x in range(new_image_size[1]):
-            for y in range(new_image_size[0]):
-                img_piece = image[y:y+self.feature_map_height,x:x+self.feature_map_length]
-                #print(np.dot(feature_map.ravel(), img_piece.ravel()))
-                new_image[y][x] = np.dot(feature_map.ravel(), img_piece.ravel())
-        return new_image
 
     # Updates the kernels weights and biases
     #   d_weight (3D np arr) - what to add to the weights
