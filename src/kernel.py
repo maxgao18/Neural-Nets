@@ -1,28 +1,14 @@
 import numpy as np
 
+from activation_functions import LeakyRELU
+
 # leaky relu function
 def func (z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return z
-        else:
-            return 0.1*z
-
-    for i, zi in enumerate(z):
-        z[i] = func(zi)
-    return z
+    return LeakyRELU.func(z)
 
 # leaky relu derivative
 def func_deriv(z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return 1
-        else:
-            return 0.1
-
-    for i, zi in enumerate(z):
-        z[i] = func_deriv(zi)
-    return z
+    return LeakyRELU.func_deriv(z)
 
 # Returns the weight errors, bias error, and previous layer errors given a 2D image
 # Args:
@@ -82,6 +68,7 @@ class Kernel:
             self.weights = weights
         else:
             self.weights = [np.random.randn(self.feature_map_height, self.feature_map_length) for f in range(self.num_feature_maps)]
+            self.weights /= np.sqrt(self.feature_map_length*self.feature_map_height)
 
         if bias is not None:
             self.bias = bias
