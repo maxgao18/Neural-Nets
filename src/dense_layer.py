@@ -1,5 +1,7 @@
 import numpy as np
 
+from activation_functions import LeakyRELU
+
 # Makes a 3D np array into a 1D np array
 def flatten_image(image):
     l = np.array([])
@@ -9,29 +11,12 @@ def flatten_image(image):
     image = l.ravel()
     return image
 
-
 # leaky relu function
 def func (z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return z
-        else:
-            return 0.1*z
-
-    for i, zi in enumerate(z):
-        z[i] = func(zi)
-    return z
+    return LeakyRELU.func(z)
 
 def func_deriv(z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return 1
-        else:
-            return 0.1
-
-    for i, zi in enumerate(z):
-        z[i] = func_deriv(zi)
-    return z
+    return LeakyRELU.func_deriv(z)
 
 class DenseLayer:
     # Args:

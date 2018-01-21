@@ -1,8 +1,18 @@
 import numpy as np
-from conv_layer import ConvLayer
+
 from kernel import Kernel
-from dense_layer import DenseLayer
+
+from conv_layer import ConvLayer
 from deconv_layer import DeconvLayer
+from dense_layer import DenseLayer
+from softmax_layer import SoftmaxLayer
+
+from cost_functions import QuadCost
+from cost_functions import NegLogLikehood
+
+from activation_functions import LeakyRELU
+from activation_functions import Softmax
+
 from random import shuffle
 from copy import deepcopy
 
@@ -28,48 +38,14 @@ def convert_to_image(arr, image_shape):
 
     return image
 
-# leaky relu function
-def func (z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return z
-        else:
-            return 0.1*z
-
-    for i, zi in enumerate(z):
-        z[i] = func(zi)
-    return z
-
-# Derivative for leaky relu
-def func_deriv(z):
-    if isinstance(z, float) or isinstance(z, int):
-        if z > 0:
-            return 1
-        else:
-            return 0.1
-
-    for i, zi in enumerate(z):
-        z[i] = func_deriv(zi)
-    return z
-
-class QuadCost:
-    @staticmethod
-    def cost (network_output, expected_output):
-        return sum(0.5*(np.power(network_output-expected_output, 2)))
-
-    @staticmethod
-    def delta (network_output, z_activation_deriv, expected_output):
-        return 0.5*(np.power(network_output-expected_output, 2)*z_activation_deriv)
-
-
 class Convolutional:
     # Args:
     #   layer_types - (list) a list of strings indicating the layer type. "conv", "deconv", or "dense"
     #   layer_shapes - (list of list of tuples) a list of the shapes for each layer
     #                       conv layers - [input shape, kernel shape]
     #                       deconv layers - [input shape, output shape, kernel shape]
-    #                       dense layers - [layer shape]
-    def __init__(self, layer_types, layer_shapes, layers=None, cost_func=QuadCost):
+    #                       dense and softmax layers - [layer shape]
+    def __init__(self, layer_types, layer_shapes, layers=None, cost_func=NegLogLikehood):
         self.layer_types = layer_types
         self.layer_shapes = layer_shapes
         self.num_layers = len(layer_types)
@@ -85,6 +61,8 @@ class Convolutional:
                     self.layers.append(DeconvLayer(input_shape=ls[0], output_shape=ls[1], kernel_shape=ls[2]))
                 elif lt == "dense":
                     self.layers.append(DenseLayer(layer_shape=ls[0]))
+                elif lt == "soft":
+                    self.layers.append(SoftmaxLayer(layer_shape=ls[0]))
 
     # Returns the next activation without squashing it
     # Args:
@@ -122,10 +100,10 @@ class Convolutional:
         z_activations = [network_input]
 
         is_conv = False
-        if self.layer_types[0] is "conv" or self.layer_types[0] == "deconv":
+        if self.layer_types[0] is "conv" or self.layer_types[0] is "deconv":
             is_conv = True
 
-        for lt, lyr in zip(self.layer_types, self.layers):
+        for i, lt, lyr in zip(range(1, self.num_layers+1), self.layer_types, self.layers):
             # Squash to 1D np array
             if lt is not "conv" and lt is not "deconv" and is_conv:
                 is_conv = False
@@ -133,11 +111,21 @@ class Convolutional:
 
             curr_z = lyr.get_activations(curr_z)
             z_activations.append(deepcopy(curr_z))
-            curr_z = func(curr_z)
+
+            if not i == self.num_layers:
+                # Use softmax for SM layers, otherwise leaky relu
+                if lt is "soft":
+                    curr_z = Softmax.func(curr_z)
+                else:
+                    curr_z = LeakyRELU.func(curr_z)
 
         # Store derivatives and activation for output layer
-        squashed_activations_deriv = func_deriv(deepcopy(curr_z))
-        squashed_activations = curr_z
+        if self.layer_types[-1] is "soft":
+            squashed_activations = Softmax.func(deepcopy(curr_z))
+            squashed_activations_deriv = Softmax.func_deriv(deepcopy(curr_z))
+        else:
+            squashed_activations = LeakyRELU.func_deriv(deepcopy(curr_z))
+            squashed_activations_deriv = LeakyRELU.func_deriv(deepcopy(curr_z))
 
         # Errors for the last layer
         delta = self.cost_func.delta(squashed_activations,

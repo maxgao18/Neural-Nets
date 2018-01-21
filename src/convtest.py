@@ -19,11 +19,17 @@ for x in range(1000):
     training_inputs.append(inp[x%6])
     training_outputs.append(outp[x%6])
 
-layer_types = ["conv", "conv", "deconv", "dense", "dense"]
-layer_shapes = [[(1,3,3),(1,1,1,1)], [(1, 3, 3), (3, 1, 2, 2)], [(3,2,2),(1,3,3),(1,3,2,2)], [(10, 1*3*3)], [(6, 10)]]
+
+
+layer_types = ["conv", "conv", "deconv", "deconv", "dense", "soft"]
+layer_shapes = [[(1,3,3),(1,1,1,1)], [(1,3,3), (3, 1, 2, 2)], [(3,2,2),(1,3,3),(1,3,2,2)], [(1,3,3), (3, 5, 5), (3, 1, 2, 2)], [(10, 3*5*5)], [(6, 10)]]
+#layer_shapes = [[(3,120,120),(3,3,61,61)], [(3,60,60),(2,3,31,31)], [(2,30,30),(1,40,40),(1,2,10,10)], [(20,1*40*40)], [(5,20)]]
 cnn = CNN(layer_types, layer_shapes)
-cnn.stochastic_gradient_descent(epochs=300,
-                                step_size=0.0001,
+print cnn.feed_forward(inp[1])
+cnn.stochastic_gradient_descent(epochs=8,
+                                step_size=0.00001,
                                 mini_batch_size=80,
                                 training_inputs=training_inputs,
                                 expected_outputs=training_outputs)
+
+#cnn.stochastic_gradient_descent(1,0.000001,1,[np.zeros((3,120,120))],[np.zeros(5)])
