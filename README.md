@@ -25,4 +25,5 @@ numpy
 **Acknowledgements:**   
 http://neuralnetworksanddeeplearning.com/  
 http://deeplearning.net/  
-https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/
+https://iamtrask.github.io/2015/11/15/anyone-can-code-lstm/  
+http://mccormickml.com/2014/06/13/deep-learning-tutorial-softmax-regression/
