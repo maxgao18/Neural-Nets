@@ -16,7 +16,18 @@ I have added deconvolutional layers, under *deconv_layer.py*, which can also be 
 
 The cost functions are under *cost_functions.py* and include Quadratic Cost and Negative Log Likelihood.
 
-The activation functions are under *activation_functions.py* and include Leaky ReLU and Softmax.
+The activation functions are under *activation_functions.py* and include Leaky ReLU and Softmax.  
+
+**Initializing the CNN and adding layers to the CNN**  
+*Initialization:*   
+Upon initialization, the CNN object (ConvolutionalNet from *convolutional.py*) requires a single parameter, an input image size (which is a tuple of integers). The tuple should be in the order of: (input image depth, input image height, input image length). It is possible to create a CNN just as a fully connected network by allowing the input image size to be an integer, representing the number of inputs.  
+  
+*Adding Layers after Initialization:*  
+Using the *add* method, it is possible to dynamically add layers to the CNN after its initialization. The add method takes up to 3 parameters, *layer_type (string), output_size(tuple or int), kernel_size (tuple)*.  
+
+The layer type is a string, either "conv", "deconv", "dense", or "soft" depending on the type of layer to be added. The output size is a tuple for deconvolutional layers, which is in the order (output image height, output image length). For dense or softmax layers, a single integer representing the number of neurons to be used on that layer is to be used. Because the output shape for conv layers depends on the input image shape and the kernel shape, conv layers do not require an inputted output size (so using the *None* keyword will work). The kernel shape is used only for conv and deconv layers. It is a 3-tuple of integers, (number of kernels to be used, kernel height, kernel length).
+
+An example can be found under *convtest.py*. This also includes an example of training the network, using stochastic gradient descent.    
 
 **Current Goals**  
 Currently, I am working on unsupervised learning and learning how to use different machine learning libraries, such as Tensorflow and Keras.
