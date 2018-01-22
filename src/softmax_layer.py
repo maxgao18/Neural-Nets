@@ -24,6 +24,7 @@ class SoftmaxLayer:
     #   biases (optional) a 1D np array of the biases
     def __init__(self, layer_shape, weights=None, biases=None):
         self.layer_shape = layer_shape
+        self.output_shape = (layer_shape[0])
         if weights is not None:
             self.weights = weights
         else:
@@ -67,3 +68,6 @@ class SoftmaxLayer:
 
     def get_biases(self):
         return self.biases
+
+    def get_output_shape(self):
+        return self.output_shape

@@ -40,29 +40,64 @@ def convert_to_image(arr, image_shape):
 
 class Convolutional:
     # Args:
-    #   layer_types - (list) a list of strings indicating the layer type. "conv", "deconv", or "dense"
-    #   layer_shapes - (list of list of tuples) a list of the shapes for each layer
-    #                       conv layers - [input shape, kernel shape]
-    #                       deconv layers - [input shape, output shape, kernel shape]
-    #                       dense and softmax layers - [layer shape]
-    def __init__(self, layer_types, layer_shapes, layers=None, cost_func=NegLogLikehood):
-        self.layer_types = layer_types
-        self.layer_shapes = layer_shapes
-        self.num_layers = len(layer_types)
+    #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
+    def __init__(self, input_shape, layers=None, cost_func=NegLogLikehood):
+        self.input_shape = input_shape
+        self.layer_types = []
+        self.num_layers = 0
         self.cost_func = cost_func
+        self.layers = []
         if layers is not None:
             self.layers = layers
-        else:
-            self.layers = []
-            for lt, ls in zip(layer_types, layer_shapes):
-                if lt == "conv":
-                    self.layers.append(ConvLayer(image_shape=ls[0], kernel_shape=ls[1]))
-                elif lt == "deconv":
-                    self.layers.append(DeconvLayer(input_shape=ls[0], output_shape=ls[1], kernel_shape=ls[2]))
-                elif lt == "dense":
-                    self.layers.append(DenseLayer(layer_shape=ls[0]))
-                elif lt == "soft":
-                    self.layers.append(SoftmaxLayer(layer_shape=ls[0]))
+
+    # Adds a new layer to the network
+    # Args:
+    #   layer_type (string) - the type of layer to be added (conv, deconv, dense, soft)
+    #   output_size (tuple/int) - the shape of the output for that layer
+    #                   conv (None)
+    #                   deconv (2 tuple): (output height, output length)
+    #                   dense and softmax (int): num of neurons on the layer
+    #   kernel_size (2-tuple) optional - for conv and deconv layers, (num kernels, kernel height, kernel length)
+    def add(self, layer_type, output_size, kernel_size=None):
+        # If there are no layers, make the first one
+        input_shape = self.input_shape
+        is_first_layer = True
+
+        # Use last layer as input shape for new layer if there exists a previous layer
+        if not len(self.layers) == 0:
+            input_shape = self.layers[-1].get_output_shape()
+            is_first_layer = False
+
+        if layer_type is "conv" or layer_type is "deconv":
+            # Order kernel shape (num kernels, kernel depth, kernel height, kernel length)
+            kernel_shape = (kernel_size[0], input_shape[0], kernel_size[1], kernel_size[2])
+
+            if layer_type is "conv":
+                self.layers.append(ConvLayer(image_shape=input_shape,
+                                             kernel_shape=kernel_shape))
+            elif layer_type is "deconv":
+                # Order output shape (image depth, image height, image length)
+                output_shape = (kernel_size[0], output_size[0], output_size[1])
+                self.layers.append(DeconvLayer(input_shape=input_shape,
+                                               output_shape=output_shape,
+                                               kernel_shape=kernel_shape))
+        elif layer_type is "dense" or layer_type is "soft":
+            # Assume last layer was softmax or dense
+            num_prev_neurons = input_shape
+            # If it is a deconv or conv, calculate number of previous neurons
+            if not is_first_layer:
+                if self.layer_types[-1] is "conv" or self.layer_types[-1] is "deconv":
+                    num_prev_neurons = input_shape[0]*input_shape[1]*input_shape[2]
+
+            # Shape for layers are (num neurons, num prev neurons)
+            layer_shape = (output_size, num_prev_neurons)
+            if layer_type is "dense":
+                self.layers.append(DenseLayer(layer_shape=layer_shape))
+            elif layer_type is "soft":
+                self.layers.append(SoftmaxLayer(layer_shape=layer_shape))
+
+        self.num_layers += 1
+        self.layer_types.append(layer_type)
 
     # Returns the next activation without squashing it
     # Args:
