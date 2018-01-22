@@ -38,7 +38,7 @@ def convert_to_image(arr, image_shape):
 
     return image
 
-class Convolutional:
+class ConvolutionalNet:
     # Args:
     #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
     def __init__(self, input_shape, layers=None, cost_func=NegLogLikehood):
@@ -53,12 +53,12 @@ class Convolutional:
     # Adds a new layer to the network
     # Args:
     #   layer_type (string) - the type of layer to be added (conv, deconv, dense, soft)
-    #   output_size (tuple/int) - the shape of the output for that layer
+    #   output_size (tuple/int) optional - the shape of the output for that layer
     #                   conv (None)
     #                   deconv (2 tuple): (output height, output length)
     #                   dense and softmax (int): num of neurons on the layer
     #   kernel_size (2-tuple) optional - for conv and deconv layers, (num kernels, kernel height, kernel length)
-    def add(self, layer_type, output_size, kernel_size=None):
+    def add(self, layer_type, output_size=None, kernel_size=None):
         # If there are no layers, make the first one
         input_shape = self.input_shape
         is_first_layer = True
