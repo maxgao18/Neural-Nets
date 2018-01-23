@@ -1,7 +1,7 @@
 import numpy as np
 from kernel import Kernel
 
-from activation_functions import LeakyRELU
+from functions import LeakyRELU
 
 # leaky relu function
 def func (z):

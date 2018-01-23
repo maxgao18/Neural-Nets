@@ -1,6 +1,6 @@
 import numpy as np
 
-from activation_functions import LeakyRELU
+from functions import LeakyRELU
 
 # leaky relu function
 def func (z):

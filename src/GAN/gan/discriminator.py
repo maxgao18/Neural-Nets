@@ -1,17 +1,16 @@
 import numpy as np
 
-from kernel import Kernel
+from layers import Kernel
 
-from conv_layer import ConvLayer
-from deconv_layer import DeconvLayer
-from dense_layer import DenseLayer
-from softmax_layer import SoftmaxLayer
+from layers import ConvLayer
+from layers import DeconvLayer
+from layers import DenseLayer
+from layers import SoftmaxLayer
 
-from cost_functions import QuadCost
-from cost_functions import NegLogLikehood
-
-from activation_functions import LeakyRELU
-from activation_functions import Softmax
+from functions import QuadraticCost
+from functions import NegativeLogLikelihood
+from functions import LeakyRELU
+from functions import Softmax
 
 from random import shuffle
 from copy import deepcopy
@@ -41,7 +40,7 @@ def convert_to_image(arr, image_shape):
 class Discriminator:
     # Args:
     #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
-    def __init__(self, input_shape, layers=None, cost_func=NegLogLikehood):
+    def __init__(self, input_shape, layers=None, cost_func=NegativeLogLikelihood):
         self.input_shape = input_shape
         self.layer_types = []
         self.num_layers = 0

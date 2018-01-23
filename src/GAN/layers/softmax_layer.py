@@ -1,6 +1,5 @@
 import numpy as np
-
-from activation_functions import LeakyRELU
+from functions import Softmax
 
 # Makes a 3D np array into a 1D np array
 def flatten_image(image):
@@ -11,14 +10,14 @@ def flatten_image(image):
     image = l.ravel()
     return image
 
-# leaky relu function
-def func (z):
-    return LeakyRELU.func(z)
+def func(z):
+    return Softmax.func(z)
 
+# derivative of softmax (z*(1-z)) for unsquashed activations z
 def func_deriv(z):
-    return LeakyRELU.func_deriv(z)
+    return Softmax.func_deriv(z)
 
-class DenseLayer:
+class SoftmaxLayer:
     # Args:
     #   layer_shape - a 2-tuple of ints (number of neurons on current layer, number of neurons on previous layer)
     #   weights (optional) - a 2D np array of the weights
