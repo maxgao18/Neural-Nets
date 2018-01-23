@@ -1,0 +1,1 @@
+from convolutional import ConvolutionalNet

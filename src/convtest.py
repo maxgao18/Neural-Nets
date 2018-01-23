@@ -1,4 +1,4 @@
-from convolutional import ConvolutionalNet as CNN
+from cnn import ConvolutionalNet as CNN
 import numpy as np
 inp = [np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,1])])]),
        np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,0])])]),
