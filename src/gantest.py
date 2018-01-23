@@ -1,5 +1,6 @@
 from neuralnets import GAN
 import numpy as np
+import storenets
 
 gan = GAN(image_shape=(1,3,3), generator_input_shape=(1,2,2), discriminator_output_shape=2)
 gan.add_layer_to_generator("deconv", (3,3), (1,2,2))
@@ -21,6 +22,8 @@ inp = [np.array([np.array([np.array([1, 1, 1]), np.array([1, 1, 1]), np.array([1
 noise = [np.random.randn(1,2,2) for i in range(1000)]
 noise_set = [(n, np.array([1,0])) for n in noise]
 real_images = [(inp[i%10], np.array([1,0])) for i in range(1000)]
+
+storenets.save("testsaving", gan)
 
 for x in range (100):
     generated_images = [(gan.generate_image(n), np.array([0,1])) for n in noise]

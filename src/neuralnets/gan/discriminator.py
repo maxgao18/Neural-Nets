@@ -72,7 +72,7 @@ class Discriminator:
             kernel_shape = (kernel_size[0], input_shape[0], kernel_size[1], kernel_size[2])
 
             if layer_type is "conv":
-                self.layers.append(ConvLayer(image_shape=input_shape,
+                self.layers.append(ConvLayer(input_shape=input_shape,
                                              kernel_shape=kernel_shape))
             elif layer_type is "deconv":
                 # Order output shape (image depth, image height, image length)

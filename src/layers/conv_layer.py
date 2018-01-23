@@ -12,12 +12,12 @@ def func_deriv(z):
 
 class ConvLayer:
     # Args:
-    #   image_shape (3 tuple (ints)) - (image depth, image height, image length)
+    #   input_shape (3 tuple (ints)) - (input depth, input height, input length)
     #   kernel_shape (4 tuple (ints)) - (num kernels, kernel depth, kernel height, kernel length)
-    def __init__(self, image_shape, kernel_shape, kernels=None):
-        self.image_shape = image_shape
+    def __init__(self, input_shape, kernel_shape, kernels=None):
+        self.input_shape = input_shape
         self.kernel_shape = kernel_shape
-        self.output_shape = (kernel_shape[0], image_shape[1]-kernel_shape[2]+1, image_shape[2]-kernel_shape[3]+1)
+        self.output_shape = (kernel_shape[0], input_shape[1]-kernel_shape[2]+1, input_shape[2]-kernel_shape[3]+1)
 
         if kernels is not None:
             self.kernels = kernels
@@ -51,12 +51,12 @@ class ConvLayer:
     #   z-activations (3D np arr) - activations for the previous layer
     #   deltas (3D np arr) - the errors in the forward layer
     def backprop (self, z_activations, deltas):
-        prevDeltas = np.zeros(self.image_shape)
+        prevDeltas = np.zeros(self.input_shape)
         kernelWeightDeltas = []
         kernelBiasDeltas = []
 
         for k, d in zip(self.kernels, deltas):
-            wd, bd, pd = k.get_errors(self.image_shape, self.output_shape, z_activations, d)
+            wd, bd, pd = k.get_errors(self.input_shape, self.output_shape, z_activations, d)
             prevDeltas+=pd
             kernelWeightDeltas.append(wd)
             kernelBiasDeltas.append(bd)

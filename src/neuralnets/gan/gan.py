@@ -37,3 +37,18 @@ class GAN:
 
     def discriminator_feed_forward(self, network_input):
         return self.discriminator.feed_forward(network_input)
+
+    def get_image_shape(self):
+        return self.image_shape
+
+    def get_generator_input_shape(self):
+        return self.generator_input_shape
+
+    def get_discriminator_output_shape(self):
+        return self.discriminator_output_shape
+
+    def get_generator(self):
+        return self.generator
+
+    def get_discriminator(self):
+        return self.discriminator
