@@ -1,5 +1,4 @@
 import numpy as np
-from abc import abstractstaticmethod, abstractmethod
 
 # Returns -1 if number is negative, 1 if positive, 0 if 0
 def sign (num):

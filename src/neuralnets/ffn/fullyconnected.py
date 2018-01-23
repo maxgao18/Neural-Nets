@@ -4,7 +4,7 @@ import functions as fn
 import numpy as np
 
 # -- Class for the neural network
-class FeedforwardNet:
+class FullyConnectedNet:
     # Args:
     #   layer_sizes (list) - list specifying how many neurons each layer should have
     #   cost (cost function) optional - which cost function should be used (quad cost or cross entropy)

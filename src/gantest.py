@@ -1,4 +1,4 @@
-from gan import GAN
+from neuralnets import GAN
 import numpy as np
 
 gan = GAN(image_shape=(1,3,3), generator_input_shape=(1,2,2), discriminator_output_shape=2)
