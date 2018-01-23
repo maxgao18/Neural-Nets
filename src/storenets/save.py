@@ -10,13 +10,14 @@ from layers import ConvLayer
 
 import os
 
-
+# Converts a tuple to string by adding "%" between elements
 def tuple_to_str(tup):
     strtup = ""
     for t in tup:
         strtup += str(t) + "%"
     return strtup
 
+# Converts string to tuple by removing "%" between elements
 def str_to_tuple(strn):
     lst = []
     while len(strn) > 0:
@@ -25,6 +26,7 @@ def str_to_tuple(strn):
         strn = strn[ind+1:]
     return tuple(lst)
 
+# Saves a network into a seperate folder
 def save (filename, network):
     currdir = os.getcwd()
     if isinstance(network, GAN):
@@ -39,7 +41,9 @@ def save (filename, network):
 
     save_net(filename, network, currdir)
 
+# Saves a network, layer, or kernel into a txt file
 def save_net(filename, network, currdir):
+    # If gan object
     if isinstance(network, GAN):
         filename += "_gan"
         filedir = os.path.join(currdir, filename+".txt")
@@ -57,8 +61,13 @@ def save_net(filename, network, currdir):
         save_net(filename, network.get_generator(), currdir)
         save_net(filename, network.get_discriminator(), currdir)
 
+        # Close file
+        savefile.close()
+
+    # If network object
     elif isinstance(network, (Generator, Discriminator, ConvolutionalNet)):
         filedir = None
+        # Extend file name depending on type of network
         if isinstance(network, Generator):
             filename += "_gen"
         elif isinstance(network, Discriminator):
@@ -82,6 +91,10 @@ def save_net(filename, network, currdir):
             savefile.write(newfilename + ".txt\n")
             save_net(newfilename, lyr, currdir)
 
+        # Close file
+        savefile.close()
+
+    # If layer object
     elif isinstance(network, (ConvLayer, DeconvLayer, DenseLayer, SoftmaxLayer)):
         filedir = os.path.join(currdir, filename + ".txt")
 
@@ -109,13 +122,19 @@ def save_net(filename, network, currdir):
             weights = network.weights
             biases = network.biases
 
+            # Save weights (2D arr)
             for w1 in weights:
                 for w2 in w1:
                     savefile.write(str(w2) + "\n")
 
+            # Save biases (1D arr)
             for b1 in biases:
                 savefile.write(str(b1) + "\n")
 
+        # Close file
+        savefile.close()
+
+    # If kernel object
     elif isinstance(network, Kernel):
         filedir = os.path.join(currdir, filename + ".txt")
 
@@ -126,9 +145,14 @@ def save_net(filename, network, currdir):
         weights = network.weights
         bias = network.bias
 
+        # Save weights (3D)
         for w1 in weights:
             for w2 in w1:
                 for w3 in w2:
                     savefile.write(str(w3) + "\n")
 
+        # Save bias (float)
         savefile.write(str(bias) + "\n")
+
+        # Close file
+        savefile.close()
