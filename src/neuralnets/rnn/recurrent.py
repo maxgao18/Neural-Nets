@@ -1,284 +1,175 @@
+from layers import SoftmaxLayer
+from layers import RecurrentLayer
+
+from functions import NegativeLogLikelihood
+from functions import Softmax
+from functions import LeakyRELU
+
+from copy import deepcopy
 import numpy as np
-import functions as fnc
+from random import shuffle
 
 class RecurrentNet:
-    # Args:
-    #   layer_sizes (list) - list specifying how many neurons each layer should have
-    #   cost (cost function) optional - which cost function should be used (quad cost or cross entropy)
-    #   logistic_func (squashing function) optional - which squashing function should be used for the network
-    def __init__(self, layer_sizes, cost = fnc.CrossEntropy, logisticFunc = fnc.Sigmoid):
-        self.__n_layers = len(layer_sizes)
-        self.__layer_sizes = layer_sizes
-        self.__biases = [np.random.randn(s) for s in layer_sizes[1:]]
-        self.__weights = [np.random.randn(cl, pl)/np.sqrt(cl)
-                          for pl, cl in zip(layer_sizes[:self.__n_layers-1], layer_sizes[1:])]
-        # Weights connecting current hidden layers to previous hidden layers
-        self.__weights_past = [np.random.randn(cl, cl)/np.sqrt(cl) for cl in layer_sizes[1:self.__n_layers-1]]
-        self.__past_hidden_state = [np.zeros(cl) for cl in layer_sizes[1:self.__n_layers-1]]
-        self.__logistic_func = logisticFunc
-        self.__cost = cost
+    def __init__(self, num_inputs, layers=None, cost_func=NegativeLogLikelihood):
+        self.num_inputs = num_inputs
+        self.num_layers = 0
+        self.layer_types = []
 
-    # Gets output of network
-    # Args:
-    #   network_input (np array) - 1D np array of inputs
-    def forward_pass(self, network_input):
-        # Calculate next hidden state by tanh(weights*activ + weights_for_prev*activ_from_prev + biases) for hidden layers
-        curr_hs = []
-        for x in range(self.__n_layers-2):
-            network_input = np.dot(self.__weights[x], network_input) + self.__biases[x] \
-                            + np.dot(self.__weights_past[x], self.__past_hidden_state[x])
-            network_input = self.__logistic_func.func(network_input)
-            curr_hs.append(np.copy(network_input))
-        network_input = np.dot(self.__weights[self.__n_layers-2], network_input) + self.__biases[self.__n_layers-2]
-        network_input = fnc.Sigmoid.func(network_input)
+        if layers is not None:
+            self.layers = layers
+            self.num_layers = len(self.layers)
 
-        # Update past hidden state
-        self.__past_hidden_state = curr_hs
+            for l in layers:
+                if isinstance(l, SoftmaxLayer):
+                    self.layer_types.append("soft")
+                elif isinstance(l, RecurrentLayer):
+                    self.layer_types.append("recurr")
+        else:
+            self.layers = []
+
+        self.cost_func = cost_func
+
+    def add(self, layer_type, output_size):
+        op = self.num_inputs
+        if len(self.layers) > 0:
+            op = self.layers[-1].get_output_shape()
+
+        layer_shape = (output_size, op)
+        if layer_type is "soft":
+            self.layers.append(SoftmaxLayer(layer_shape))
+        elif layer_type is "recurr":
+            self.layers.append(RecurrentLayer(layer_shape))
+
+        self.layer_types.append(layer_type)
+
+        self.num_layers+=1
+
+    def forget_past(self):
+        for l in self.layers:
+            if isinstance(l, RecurrentLayer):
+                l.forget_past()
+
+    def feed_forward(self, network_input):
+        for l in self.layers:
+            network_input = l.feed_forward(network_input)
         return network_input
 
-    # Calculates gradients for individual test cases
+    def backprop(self, network_input, expected_output):
+        curr_z = network_input
+        z_activations = [network_input]
+        p_z_activations = []
+
+        for i, lt, lyr in zip(range(1, self.num_layers + 1), self.layer_types, self.layers):
+            if lt == "recurr":
+                prev_z, curr_z = lyr.get_activations(curr_z)
+                z_activations.append(deepcopy(curr_z))
+                p_z_activations.append(prev_z)
+            elif lt == "soft":
+                curr_z = lyr.get_activations(curr_z)
+                z_activations.append(deepcopy(curr_z))
+
+            if not i == self.num_layers:
+                # Use softmax for SM layers, otherwise leaky relu
+                if lt is "soft":
+                    curr_z = Softmax.func(curr_z)
+                else:
+                    curr_z = LeakyRELU.func(curr_z)
+
+        # Store derivatives and activation for output layer
+        if self.layer_types[-1] is "soft":
+            squashed_activations = Softmax.func(deepcopy(curr_z))
+            squashed_activations_deriv = Softmax.func_deriv(deepcopy(curr_z))
+        else:
+            squashed_activations = LeakyRELU.func_deriv(deepcopy(curr_z))
+            squashed_activations_deriv = LeakyRELU.func_deriv(deepcopy(curr_z))
+
+        # Errors for the last layer
+        delta = self.cost_func.delta(squashed_activations,
+                                     squashed_activations_deriv,
+                                     expected_output)
+
+        is_conv = True
+        if self.layer_types[self.num_layers - 1] is not "conv" \
+                and self.layer_types[self.num_layers - 1] is not "deconv":
+            is_conv = False
+
+        delta_w = []
+        delta_pw = []
+        delta_b = []
+
+        cnt = -1
+        # Append all the errors for each layer
+        for i, lt, lyr, zprev in reversed(zip(range(self.num_layers), self.layer_types, self.layers, z_activations[:-1])):
+            if lt is "soft":
+                dw, db, dlt = lyr.backprop(zprev, delta)
+                delta_w.insert(0, dw)
+                delta_b.insert(0, db)
+
+                delta = dlt
+            elif lt is "recurr":
+                dw, dpw, db, dlt = lyr.backprop(p_z_activations[cnt], zprev, delta)
+                delta_w.insert(0, dw)
+                delta_pw.insert(0, dpw)
+                delta_b.insert(0, db)
+
+                delta = dlt
+
+                cnt-=1
+
+        return np.array(delta_w), np.array(delta_pw), np.array(delta_b)
+
+    # Updates the network given a specific minibatch (done by averaging gradients over the minibatch)
     # Args:
-    #   network_input (np array) - the input for the network
-    #   expected_out (np array) - the expected output for that input
-    def __back_prop (self, case, exp):
-        z = case
-        activations = [case]
-        activations_prime = [np.zeros(self.__layer_sizes[0])]
+    #   mini_batch - a list of tuples, (input, expected output)
+    #   step_size - the amount the network should change its parameters by relative to the gradients
+    def update_network(self, mini_batch, step_size):
+        recurrent_indicies = [False for i in range(self.num_layers)]
+        for i, l in enumerate(self.layers):
+            if isinstance(l, RecurrentLayer):
+                recurrent_indicies[i] = True
 
-        # Calculate and store all necessary variables
-        for w, b, pw, ps in zip(self.__weights[:self.__n_layers-2], self.__biases[:self.__n_layers-2],
-                                self.__weights_past, self.__past_hidden_state):
-            z = np.dot(w, z) + np.dot(pw, ps) + b
-            activations.append(self.__logistic_func.func(z))
-            activations_prime.append(self.__logistic_func.func_deriv(z))
-            z = self.__logistic_func.func(z)
-        z = np.dot(self.__weights[self.__n_layers-2], z) + self.__biases[self.__n_layers-2]
+        gradient_w, gradient_pw, gradient_b = self.backprop(mini_batch[0][0], mini_batch[0][1])
 
-        # Append final layer
-        activations.append(fnc.Sigmoid.func(z))
-        activations_prime.append(fnc.Sigmoid.func_deriv(z))
+        for inp, outp in mini_batch[1:]:
+            dgw, dgpw, dgb = self.backprop(inp, outp)
+            gradient_w += dgw
+            gradient_pw += dgpw
+            gradient_b += dgb
 
-        delta = self.__cost.delta(activations[self.__n_layers-1], exp, z)
+        # Average the gradients
+        gradient_w *= step_size / (len(mini_batch) + 0.00)
+        gradient_pw *= step_size / (len(mini_batch) + 0.00)
+        gradient_b *= step_size / (len(mini_batch) + 0.00)
 
-        # Store gradients
-        grad_b = [np.zeros(n) for n in self.__layer_sizes[1:]]
-        grad_w = [np.zeros((c, p)) for c, p in zip(self.__layer_sizes[1:], self.__layer_sizes[:self.__n_layers-1])]
-        grad_w_p = [np.zeros((c, c)) for c in self.__layer_sizes[1:self.__n_layers-1]]
-
-        # Update gradients for last layer
-        grad_b[self.__n_layers-2] = delta
-        grad_w[self.__n_layers-2] = np.dot(np.array([delta]).transpose(), np.array([activations[self.__n_layers-2]]))
-
-        # Back prop for each layer and store data
-        for x in reversed(range(1, self.__n_layers-1)):
-            delta = np.dot(self.__weights[x].T, delta)*activations_prime[x]
-            grad_b[x-1] = delta
-            grad_w[x-1] = np.dot(np.array([delta]).transpose(), [activations[x-1]])
-            grad_w_p[x-1] = np.dot(np.array([delta]).transpose(), [self.__past_hidden_state[x-1]])
-
-        loss = self.__cost.cost(activations[self.__n_layers-1], exp)
-        return grad_b, grad_w, grad_w_p, activations, loss
-
-    # Updates networks weights and biases based on gradients
-    def __update_mini_batch (self, mini_batch, step_size):
-        # Stores gradients
-        net_loss = 0
-        grad_b = [np.zeros(b.shape) for b in self.__biases]
-        grad_w = [np.zeros(w.shape) for w in self.__weights]
-        grad_w_p = [np.zeros(wp.shape) for wp in self.__weights_past]
-
-        for data, exp in mini_batch:
-            d_grad_b, d_grad_w, d_grad_w_p, act, loss = self.__back_prop(data, exp)
-            grad_b = [gb+dbg for gb, dbg in zip(grad_b, d_grad_b)]
-            grad_w = [gw+dgw for gw, dgw in zip(grad_w, d_grad_w)]
-            grad_w_p = [gwp+dgwp for gwp, dgwp in zip(grad_w_p, d_grad_w_p)]
-            net_loss += loss
-            self.__past_hidden_state = act[1:self.__n_layers-1]
-
-        change = (step_size+0.0)/len(mini_batch)
-        self.__weights = [w-change*gw for w, gw in zip(self.__weights, grad_w)]
-        self.__biases = [b-change*gb for b, gb in zip(self.__biases, grad_b)]
-        self.__weights_past = [wp-change*gwp for wp, gwp in zip(self.__weights_past, grad_w_p)]
-
-        return net_loss
-
-    # Performs SDG with training inputs and outputs
-    # Args:
-    #   epochs - number of times to train network with on the entire training set
-    #   mini_batch_size - how large each random batch of test cases should be before performing back propagation
-    #   step_size - step size to be used while performing SGD
-    #   training_inputs - a list of inputs (1D vectors) for the network
-    #   expected_out - a list of expected outputs (1D vectors) for the network, in the order of th training inputs
-    def sgd (self, epochs, mini_batch_size, step_size, training_inputs, expected_outputs):
-        n_data = len(training_inputs)
-        training_data = []
-        for x in range(n_data):
-            training_data.append([training_inputs[x], expected_outputs[x]])
-
-        # Train for a specified number of epochs
-        for x in range(epochs):
-            loss = 0
-            mini_batches = []
-            st = 0
-            if not n_data==mini_batch_size:
-                st = np.random.randint(0, n_data%mini_batch_size)
-            for n in range(st, n_data-mini_batch_size+st+1, mini_batch_size):
-                mini_batches.append(training_data[n:n+mini_batch_size])
-            for mini_batch in mini_batches:
-                loss += self.__update_mini_batch(mini_batch, step_size)
-            self.clear_mem()
-
-            #print ("epoch ", x, " loss ", loss)
-            if x % 500 == 0:
-                print ("Epoch: ", x, ", Loss: ", loss)
-
-    # Sets the networks weights and biases
-    # Args:
-    #   weights (3D np array)
-    #   biases (2D np array)
-    #   weights_past (3D np array)
-    def set_weights_biases(self, weights, biases, weights_past):
-        if not len(weights) == len(biases):
-            return "Failed to set network because length of weight and bias arrays do not match"
-        n_layers = len(weights) + 1
-        layer_sizes = []
-        layer_sizes.append(len(weights[0][0]))
-        for w in weights[0]:
-            if not len(w) == layer_sizes[0]:
-                return "Failed to set network because layer sizes and weight lengths do not agree"
-        for l, b, n in zip(weights, biases, range(0, n_layers - 1)):
-            if len(l) == len(b):
-                layer_sizes.append(len(b))
-                for w in l:
-                    if not len(w) == layer_sizes[n]:
-                        return "Failed to set network because layer sizes and weight lengths do not agree"
+        cnt = 0
+        # Update weights and biases in opposite direction of gradients
+        for i, gw, gb, lyr in zip(range(self.num_layers), gradient_w, gradient_b, self.layers):
+            if recurrent_indicies[i]:
+                lyr.update(-gw, -gradient_pw[cnt], -gb)
+                cnt+=1
             else:
-                return "Failed to set network because layer sizes of weights and biases do not agree"
+                lyr.update(-gw, -gb)
 
-        if not len(weights_past) == n_layers-2:
-            return "Failed to set network because length of past weights and current weights are not compatable"
-        for c, l in enumerate(weights_past):
-            if not len(l) == layer_sizes[c+1]:
-                return "Failed to set network because past and current weights are not compatable"
-            for n in l:
-                if not len(n) == layer_sizes[c+1]:
-                    return "Failed to set network"
+    # Evaluates the average cost across the training set
+    def evaluate_cost(self, training_set):
+        total = 0.0
+        for inp, outp in training_set:
+            net_outp = self.feed_forward(inp)
+            total += self.cost_func.cost(net_outp, outp)
+        return total / len(training_set)
 
-        self.__n_layers = n_layers
-        self.__weights = weights
-        self.__biases = biases
-        self.__weights_past = weights_past
-        self.__layer_sizes = layer_sizes
-        self.__past_hidden_state = [np.zeros(cl) for cl in layer_sizes[1:self.__n_layers-1]]
-        return layer_sizes
-
-    # Clears networks past memory
-    def clear_mem(self):
-        self.__past_hidden_state = [np.zeros(cl) for cl in self.__layer_sizes[1:self.__n_layers - 1]]
-
-    def get_weights(self):
-        return self.__weights
-
-    def get_weights_past(self):
-        return self.__weights_past
-
-    def get_biases(self):
-        return self.__biases
-
-    def get_layer_sizes(self):
-        return self.__layer_sizes
-
-# Writes a network to a file
-# Args:
-#   net - a recurrent network object
-#   filename (string)
-def write_to_file (net, filename):
-    file = open(filename, 'w')
-    l_s = net.get_layer_sizes()
-    # Save number of layers
-    file.write(str(len(l_s)))
-    # Save layer sizes
-    for x in l_s:
-        file.write("\n" + str(x))
-
-    # Save weights
-    w = net.get_weights()
-    for a in w:
-        for b in a:
-            for c in b:
-                file.write("\n" + str(c))
-
-    # Save biases
-    b = net.get_biases()
-    for a in b:
-        for c in a:
-            file.write("\n" + str(c))
-
-    # Save past weights
-    wp = net.get_weights_past()
-    for a in wp:
-        for b in a:
-            for c in b:
-                file.write("\n" + str(c))
-
-    # Close file
-    file.close()
-    return "Wrote to: " + filename
-
-# Reads the weights and biases from a file
-# Args: filename (string)
-def read_w_b_from_file (filename):
-    counter = 0
-    file = open(filename, 'r')
-    #read line by line
-    arr = file.read().splitlines()
-    n_layers = int(arr[counter])
-    layer_sizes = []
-    for x in range(n_layers):
-        counter += 1
-        layer_sizes.append(int(arr[counter]))
-    biases = []
-    weights = []
-    weights_past = []
-    # Read weights
-    for x in range(1, n_layers):
-        layer = np.zeros((layer_sizes[x], layer_sizes[x-1]))
-        for y in range(layer_sizes[x]):
-            for z in range(layer_sizes[x-1]):
-                counter += 1
-                layer[y][z] = float(arr[counter])
-        weights.append(layer)
-    # Read biases
-    for x in range (1, n_layers):
-        layer = np.zeros(layer_sizes[x])
-        for y in range(layer_sizes[x]):
-            counter += 1
-            layer[y] = float(arr[counter])
-        biases.append(layer)
-    # Read past weights
-    for x in range(1, n_layers-1):
-        layer = np.zeros((layer_sizes[x], layer_sizes[x]))
-        for y in range(layer_sizes[x]):
-            for z in range(layer_sizes[x]):
-                counter+=1
-                layer[y][z] = float(arr[counter])
-        weights_past.append(layer)
-    file.close()
-
-    return weights, biases, weights_past
-
-# Finds the max in an array and returns the index of that element
-def find_max_index (arr):
-    max = arr[0]
-    ind = 0
-    for cnt, x in enumerate(arr[1:]):
-        if max < x:
-            max = x
-            ind = cnt
-    return ind
-
-# Converts an index to a 1 hot array of a specified length
-def to_one_hot (ind, len):
-    arr = np.zeros(len)
-    arr[ind] = 1
-    return arr
+    # Performs SGD on the network
+    # Args:
+    #   epochs - (int), number of times to loop over the entire batch
+    #   step_size - (float), amount network should change its parameters per update
+    #   mini_batch_size - (int), number of training examples per mini batch
+    #   training_inputs - (list), the list of training inputs
+    #   expected_outputs - (list), the list of expected outputs for each input
+    def stochastic_gradient_descent(self, epochs, step_size, mini_batch_size, training_set):
+        # Train
+        for ep in range(epochs):
+            for x in range(0, len(training_set), mini_batch_size):
+                self.update_network(training_set[x:x + mini_batch_size], step_size)
+            # Update with progress
+            print("Epoch: %d   Average cost: %f" % (ep + 1, self.evaluate_cost(training_set)))
+            self.forget_past()
