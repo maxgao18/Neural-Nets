@@ -1,5 +1,7 @@
 from neuralnets import ConvolutionalNet as CNN
 import numpy as np
+from storenets import save
+
 inp = [np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,1])])]),
        np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,0])])]),
        np.array([np.array([np.array([1, 0, 1]), np.array([1, 1, 1]), np.array([1, 1, 0])])]),
@@ -33,8 +35,20 @@ cnn.add(layer_type="dense", output_size=10)
 cnn.add(layer_type="soft", output_size=6)
 
 #print cnn.feed_forward(inp[1])
-cnn.stochastic_gradient_descent(epochs=8,
+cnn.stochastic_gradient_descent(epochs=0,
                                 step_size=0.00001,
                                 mini_batch_size=80,
                                 training_inputs=training_inputs,
                                 expected_outputs=training_outputs)
+
+for x in range (100):
+    print(x)
+    cnn.momentum_based_sgd(epochs=40,
+                           resistance=0.9,
+                           step_size=0.001,
+                            mini_batch_size=80,
+                            training_inputs=training_inputs,
+                            expected_outputs=training_outputs)
+    save("test", cnn)
+
+

@@ -41,7 +41,7 @@ def prev_errors (in_shape, out_shape, zs, weights, bias, deltas):
     # Loop kernel across image to calculate grad_w
     for y in range(out_shape[0]-kernelHeight+1):
         for x in range(out_shape[1]-kernelLength+1):
-            weightDeltas += np.multiply(zs[y:y+kernelHeight, x:x+kernelLength], deltas[y:y+kernelHeight, x:x+kernelLength])
+            weightDeltas += np.multiply(func(zs[y:y+kernelHeight, x:x+kernelLength]), deltas[y:y+kernelHeight, x:x+kernelLength])
 
             #--- Old method
             # # Calculate for one convolution

@@ -6,8 +6,11 @@ def to_one_hot (ind, arrlen):
     arr[ind] = 1
     return arr
 
-test = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzA"
+test = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 test_len = len(test)
+
+for i in range(8):
+    test += test
 
 letters = list(test)
 unique_letters = set(letters)
@@ -35,9 +38,9 @@ rnn.add("recurr", 30)
 rnn.add("soft", num_unique)
 print(rnn.feed_forward(training_inputs[0]))
 rnn.forget_past()
-rnn.stochastic_gradient_descent(epochs=1000,
-                                step_size=0.001,
-                                mini_batch_size=test_len-1,
+rnn.stochastic_gradient_descent(epochs=100,
+                                step_size=0.01,
+                                mini_batch_size=test_len,
                                 training_set=training_set)
 print(rnn.feed_forward(training_inputs[0]))
 
