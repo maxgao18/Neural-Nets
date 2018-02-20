@@ -1,58 +1,42 @@
 import numpy as np
-
 from functions import LeakyRELU
+from layer import Layer
 
-# Makes a 3D np array into a 1D np array
-def flatten_image(image):
-    l = np.array([])
-    for x in image:
-        l = np.concatenate((l, x.ravel()))
-
-    image = l.ravel()
-    return image
-
-# leaky relu function
-def func (z):
-    return LeakyRELU.func(z)
-
-def func_deriv(z):
-    return LeakyRELU.func_deriv(z)
-
-class DenseLayer:
+class DenseLayer(Layer):
     # Args:
     #   layer_shape - a 2-tuple of ints (number of neurons on current layer, number of neurons on previous layer)
     #   weights (optional) - a 2D np array of the weights
     #   biases (optional) a 1D np array of the biases
-    def __init__(self, layer_shape, weights=None, biases=None):
-        self.layer_shape = layer_shape
-        self.output_shape = layer_shape[0]
+    def __init__(self, input_shape, output_shape, weights=None, biases=None, activation_function=LeakyRELU):
+        super(DenseLayer,self).__init__(input_shape=input_shape,
+                                        output_shape=output_shape,
+                                        activation_function=activation_function)
         if weights is not None:
             self.weights = weights
         else:
-            self.weights = np.random.randn(layer_shape[0], layer_shape[1])
+            self.weights = np.random.randn(output_shape, input_shape)
 
         if biases is not None:
             self.biases = biases
         else:
-            self.biases = np.random.randn(layer_shape[0])
+            self.biases = np.random.randn(output_shape)
 
     # Similar to feed forward but without squashing
-    def get_activations(self, input_activations):
-        return np.dot(self.weights, input_activations) + self.biases
+    def getactivations(self, inputs):
+        return np.dot(self.weights, inputs) + self.biases
 
     # Feeds the input through the layer and uses leaky relu as an logistic function
     # Args:
     #   input_activations - a 1D np array of the previous activations
-    def feed_forward(self, input_activations):
-        return func(self.get_activations(input_activations))
+    def feedforward(self, inputs):
+        return self.activation_function.func(self.getactivations(inputs))
 
     # Returns the gradients for the weights, biases, and the deltas for the previous layer
-    def backprop (self, z_activations, deltas):
-        if len(z_activations.shape) == 3:
-            z_activations = flatten_image(z_activations)
-        prevDeltas = np.dot(self.weights.transpose(), deltas) * func_deriv(z_activations)
-        biasDeltas = deltas
-        weightDeltas = np.dot(np.array([deltas]).transpose(), np.array([func(z_activations)]))
+    def backprop (self, prev_fz_activations, d_prev_z_activations, curr_deltas):
+        biasDeltas = curr_deltas
+
+        prevDeltas = np.dot(self.weights.transpose(), curr_deltas) * d_prev_z_activations
+        weightDeltas = np.dot(np.array([curr_deltas]).transpose(), np.array([prev_fz_activations]))
 
         return weightDeltas, biasDeltas, prevDeltas
 
@@ -69,6 +53,3 @@ class DenseLayer:
 
     def get_biases(self):
         return self.biases
-
-    def get_output_shape(self):
-        return self.output_shape

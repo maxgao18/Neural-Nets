@@ -8,8 +8,9 @@ class LeakyRELU:
         if isinstance(z, float) or isinstance(z, int):
             if z > 0:
                 return z
-            else:
-                return 0.1*z
+            return 0.1*z
+        elif z.dtype == np.int:
+            z = np.asfarray(z, dtype='float')
 
         for i, zi in enumerate(z):
             z[i] = LeakyRELU.func(zi)
@@ -21,8 +22,7 @@ class LeakyRELU:
         if isinstance(z, float) or isinstance(z, int):
             if z > 0:
                 return 1
-            else:
-                return 0.1
+            return 0.1
         for i, zi in enumerate(z):
             z[i] = LeakyRELU.func_deriv(zi)
         return z
@@ -36,8 +36,10 @@ class Sigmoid:
                 return 0.999999999
             elif z < -15:
                 return 0.000000001
-            else:
-                return np.exp(z)
+            return np.exp(z)
+        elif z.dtype == np.int:
+            z = np.asfarray(z, dtype='float')
+
         for i, zi in enumerate(z):
             z[i] = Sigmoid.func(zi)
         return z
@@ -58,12 +60,10 @@ class Softmax:
     @staticmethod
     def get_exp(z):
         if isinstance(z, float) or isinstance(z, int):
-            if z > 10:
-                return np.exp(10.0) + z - 9
-            elif z < -15:
-                return np.exp(-15.0 - np.log(-(z + 14.0)))
-            else:
-                return np.exp(z)
+            return np.exp(z)
+        elif z.dtype == np.int:
+            z = np.asfarray(z, dtype='float')
+
         for i, zi in enumerate(z):
             z[i] = Softmax.get_exp(zi)
         return z

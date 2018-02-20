@@ -10,12 +10,19 @@ class QuadraticCost:
     def delta (network_output, z_activation_deriv, expected_output):
         return 0.5*(np.power(network_output-expected_output, 2)*z_activation_deriv)
 
-# Optimized with softmax, but can be used with other functions
+# Optimized with softmax
 class NegativeLogLikelihood:
+    # returns the KL divergence
     @staticmethod
     def cost (network_output, expected_output):
-        return sum(-1*(np.log(network_output)*expected_output))
+        totalsum = 0.0
+        for no, eo in zip(network_output,expected_output):
+            if eo > 0:
+                totalsum -= eo*np.log((no+0.0)/(eo+0.0))
+        return totalsum
 
     @staticmethod
     def delta (network_output, z_activation_deriv, expected_output):
-        return -(expected_output/network_output)*z_activation_deriv
+        return network_output-expected_output
+        #return -(expected_output/network_output)*z_activation_deriv
+

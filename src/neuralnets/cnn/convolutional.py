@@ -91,12 +91,12 @@ class ConvolutionalNet:
                 if self.layer_types[-1] is "conv" or self.layer_types[-1] is "deconv":
                     num_prev_neurons = input_shape[0]*input_shape[1]*input_shape[2]
 
-            # Shape for layers are (num neurons, num prev neurons)
-            layer_shape = (output_size, num_prev_neurons)
             if layer_type is "dense":
-                self.layers.append(DenseLayer(layer_shape=layer_shape))
+                self.layers.append(DenseLayer(input_shape=num_prev_neurons,
+                                              output_shape=output_size))
             elif layer_type is "soft":
-                self.layers.append(SoftmaxLayer(layer_shape=layer_shape))
+                self.layers.append(SoftmaxLayer(input_shape=num_prev_neurons,
+                                                output_shape=output_size))
 
         self.num_layers += 1
         self.layer_types.append(layer_type)
@@ -106,11 +106,11 @@ class ConvolutionalNet:
     #   z_activations - (np arr) the current activations
     #   layer - the next layer to be used
     def next_activation(self, z_activations, layer):
-        return layer.get_activations(z_activations)
+        return layer.getactivations(z_activations)
 
     # Feeds an input through the network, returning the output
     # Args: network_input - (np arr) the input
-    def feed_forward(self, network_input):
+    def feedforward(self, network_input):
         is_conv = False
         if self.layer_types[0] == "conv" or self.layer_types[0] == "deconv":
             is_conv = True
@@ -124,7 +124,7 @@ class ConvolutionalNet:
                 is_conv = False
                 network_input = flatten_image(network_input)
 
-            network_input = lyr.feed_forward(network_input)
+            network_input = lyr.feedforward(network_input)
 
         return network_input
 
@@ -134,7 +134,8 @@ class ConvolutionalNet:
     #   expected_output - (np arr) the expected output
     def backprop(self, network_input, expected_output):
         curr_z = network_input
-        z_activations = [network_input]
+        fzs_list = [network_input]
+        dzs_list = [network_input]
 
         is_conv = False
         if self.layer_types[0] is "conv" or self.layer_types[0] is "deconv":
@@ -146,27 +147,15 @@ class ConvolutionalNet:
                 is_conv = False
                 curr_z = flatten_image(curr_z)
 
-            curr_z = lyr.get_activations(curr_z)
-            z_activations.append(deepcopy(curr_z))
+            curr_z = lyr.getactivations(curr_z)
+            dzs_list.append(lyr.activation_function.func_deriv(deepcopy(curr_z)))
 
-            if not i == self.num_layers:
-                # Use softmax for SM layers, otherwise leaky relu
-                if lt is "soft":
-                    curr_z = Softmax.func(curr_z)
-                else:
-                    curr_z = LeakyRELU.func(curr_z)
-
-        # Store derivatives and activation for output layer
-        if self.layer_types[-1] is "soft":
-            squashed_activations = Softmax.func(deepcopy(curr_z))
-            squashed_activations_deriv = Softmax.func_deriv(deepcopy(curr_z))
-        else:
-            squashed_activations = LeakyRELU.func_deriv(deepcopy(curr_z))
-            squashed_activations_deriv = LeakyRELU.func_deriv(deepcopy(curr_z))
+            curr_z = lyr.activation_function.func(curr_z)
+            fzs_list.append(deepcopy(curr_z))
 
         # Errors for the last layer
-        delta = self.cost_func.delta(squashed_activations,
-                                     squashed_activations_deriv,
+        delta = self.cost_func.delta(fzs_list[-1],
+                                     dzs_list[-1],
                                      expected_output)
 
         is_conv = True
@@ -178,13 +167,13 @@ class ConvolutionalNet:
         delta_b = []
 
         # Append all the errors for each layer
-        for lt, lyr, zprev in reversed(zip(self.layer_types, self.layers, z_activations[:-1])):
+        for lt, lyr, fzs, dzs in reversed(zip(self.layer_types, self.layers, fzs_list[:-1], dzs_list[:-1])):
             if lt is "conv" or lt is "deconv":
                 if not is_conv:
                     delta = convert_to_image(delta, lyr.get_output_shape())
                     is_conv = True
 
-            dw, db, dlt = lyr.backprop(zprev, delta)
+            dw, db, dlt = lyr.backprop(fzs, dzs, delta)
             delta_w.insert(0, dw)
             delta_b.insert(0, db)
 
@@ -219,6 +208,9 @@ class ConvolutionalNet:
             self.velocity *= resistance
             self.velocity += np.array([gradient_w, gradient_b])
 
+        # print "V " + str(self.velocity[0][0])
+        # print "W " + str(self.layers[0].kernels[0].weights)
+        # print "next"
         # Update weights and biases in opposite direction of gradients
         for gw, gb, lyr in zip(self.velocity[0], self.velocity[1], self.layers):
             lyr.update(-gw, -gb)
@@ -248,7 +240,7 @@ class ConvolutionalNet:
     def evaluate_cost(self, training_set):
         total = 0.0
         for inp, outp in training_set:
-            net_outp = self.feed_forward(inp)
+            net_outp = self.feedforward(inp)
             total += self.cost_func.cost(net_outp, outp)
         return total/len(training_set)
 
@@ -295,4 +287,8 @@ class ConvolutionalNet:
 
             # Update with progress
             print("Epoch: %d   Average cost: %f" % (ep + 1, self.evaluate_cost(training_set)))
+        # print ("w")
+        # print self.velocity[0][0][0]
+        # print ("b")
+        # print self.velocity[1][0]
         self.reset_velocity()
