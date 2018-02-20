@@ -21,10 +21,36 @@ class LeakyRELU:
     def func_deriv(z):
         if isinstance(z, float) or isinstance(z, int):
             if z > 0:
-                return 1
+                return 1.0
             return 0.1
         for i, zi in enumerate(z):
             z[i] = LeakyRELU.func_deriv(zi)
+        return z
+
+class RELU:
+    # function
+    @staticmethod
+    def func (z):
+        if isinstance(z, float) or isinstance(z, int):
+            if z > 0:
+                return z
+            return 0.0
+        elif z.dtype == np.int:
+            z = np.asfarray(z, dtype='float')
+
+        for i, zi in enumerate(z):
+            z[i] = RELU.func(zi)
+        return z
+
+    # Derivative for leaky relu
+    @staticmethod
+    def func_deriv(z):
+        if isinstance(z, float) or isinstance(z, int):
+            if z > 0:
+                return 1.0
+            return 0.0
+        for i, zi in enumerate(z):
+            z[i] = RELU.func_deriv(zi)
         return z
 
 class Sigmoid:

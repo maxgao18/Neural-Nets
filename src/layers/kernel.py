@@ -1,57 +1,38 @@
 import numpy as np
 
-from functions import LeakyRELU
-
-# leaky relu function
-def func (z):
-    return LeakyRELU.func(z)
-
-# leaky relu derivative
-def func_deriv(z):
-    return LeakyRELU.func_deriv(z)
-
-# Returns the weight errors, bias error, and previous layer errors given a 2D image
+# Returns the weight errors, bias error, and layer errors given a 2D image for the previous layer
 # Args:
 #   in_shape (tuple) - (original image height, original image length)
 #   out_shape (tuple) - (filtered image height, filtered image length)
-#   zs (2D np arr) - unsquashed activations of original image
+#   fzs (2D np arr) - function activated activations of original image
+#   dzs (2D np arr) - derivative of activations of original image
 #   weights (2D np arr) - weights of a kernel
 #   bias (float) - kernel bias
-#   deltas (2D np arr) - forward errors (with out_shape shape)
-def prev_errors (in_shape, out_shape, zs, weights, bias, deltas):
-    deltasPrev = np.zeros(in_shape)
+#   curr_deltas (2D np arr) - errors of current layer (with out_shape shape)
+def prev_errors (input_shape, output_shape, fzs, dzs, weights, bias, curr_deltas):
+    deltasprev = np.zeros(input_shape)
     kernelHeight = len(weights)
     kernelLength = len(weights[0])
 
     weightDeltas = np.zeros((kernelLength,kernelHeight))
 
     # Loop for each step
-    for y in range(out_shape[0]):
-        for x in range(out_shape[1]):
-            d = deltas[y][x]
+    for y in range(output_shape[0]):
+        for x in range(output_shape[1]):
+            d = curr_deltas[y][x]
 
-            deltasPrev[y:y+kernelHeight,x:x+kernelLength] += d*np.multiply(weights,func_deriv(zs[y:y+kernelHeight,x:x+kernelLength]))
-
-            # --- Old method
-            # # Loop for each part of the kernel
-            # for wy, dpy in enumerate(range(y, y+kernelHeight)):
-            #     for wx, dpx in enumerate(range(x, x+kernelLength)):
-            #         deltasPrev[dpy][dpx] += d*weights[wy][wx]*func_deriv(zs[dpy][dpx])
+            deltasprev[y:y+kernelHeight,x:x+kernelLength] += d*np.multiply(weights,
+                                                                           dzs[y:y+kernelHeight,x:x+kernelLength])
 
     # Loop kernel across image to calculate grad_w
-    for y in range(out_shape[0]-kernelHeight+1):
-        for x in range(out_shape[1]-kernelLength+1):
-            weightDeltas += np.multiply(func(zs[y:y+kernelHeight, x:x+kernelLength]), deltas[y:y+kernelHeight, x:x+kernelLength])
+    for y in range(output_shape[0]-kernelHeight+1):
+        for x in range(output_shape[1]-kernelLength+1):
+            weightDeltas += np.multiply(fzs[y:y+kernelHeight, x:x+kernelLength],
+                                        curr_deltas[y:y+kernelHeight, x:x+kernelLength])
 
-            #--- Old method
-            # # Calculate for one convolution
-            # for wy in range(kernelHeight):
-            #     for wx in range(kernelLength):
-            #         weightDeltas[wy][wx] += func(zs[y+wy][x+wx])*deltas[y+wy][x+wx]
+    biasDelta = np.sum(curr_deltas)
 
-    biasDelta = np.sum(deltas)
-
-    return weightDeltas, biasDelta, deltasPrev
+    return weightDeltas, biasDelta, deltasprev
 
 # Individual kernel objects
 class Kernel:
@@ -83,23 +64,26 @@ class Kernel:
         new_image = np.zeros(new_image_size)
         for y in range(new_image_size[0]):
             for x in range(new_image_size[1]):
-                new_image[y][x] = np.sum(np.multiply(image_list[:,y:y+self.feature_map_height,x:x+self.feature_map_length], self.weights)) + self.bias
+                new_image[y][x] = np.sum(np.multiply(image_list[:,y:y+self.feature_map_height,x:x+self.feature_map_length],
+                                                     self.weights)) \
+                                  + self.bias
         return new_image
 
     # Returns the weight, bias, and delta errors given a current set of deltas
     # Args:
     #   input_image_shape (3-tuple) - a 3 tuple for the shape of input images (num images, image height, image length)
     #   output_image_shape (3-tuple) - a 3 tuple for the shape of the output images (same format)
-    #   z-activations (3D np array) - the previous non-squashed activations
+    #   prev_fz_activations (3D np array) - the previous squashed activations
+    #   d_prev_z_activations (3D np array) - derivative of previous squashed activations
     #   deltas (3D np array) - the previous errors
-    def get_errors(self, input_image_shape, output_image_shape, z_activations, deltas):
+    def backprop(self, input_shape, output_shape, prev_fz_activations, d_prev_z_activations, curr_deltas):
         deltaPrevs = []
         weightDeltas = []
-        biasDelta = 0
+        biasDelta = 0.0
 
-        for w, z in zip(self.weights, z_activations):
-            w_err, b_err, d_err = prev_errors(input_image_shape[1:],output_image_shape[1:],
-                                  z,w,self.bias,deltas)
+        for w, fzs, dzs in zip(self.weights, prev_fz_activations, d_prev_z_activations):
+            w_err, b_err, d_err = prev_errors(input_shape[1:], output_shape[1:],
+                                  fzs, dzs, w, self.bias, curr_deltas)
             deltaPrevs.append(d_err)
             weightDeltas.append(w_err)
             biasDelta += b_err

@@ -10,47 +10,43 @@ from layers import SoftmaxLayer
 from functions import QuadraticCost
 from functions import NegativeLogLikelihood
 
-from functions import LeakyRELU
-from functions import Softmax
+from neural_network import NeuralNetwork
 
 from random import shuffle
 from copy import deepcopy
 
 # Makes a 3D np array into a 1D np array
 def flatten_image(image):
-    l = np.array([])
-    for x in image:
-        l = np.concatenate((l, x.ravel()))
+    if len(image.shape) > 1:
+        l = np.array([])
+        for x in image:
+            l = np.concatenate((l, x.ravel()))
 
-    image = l.ravel()
+        image = l.ravel()
     return image
 
 # Makes 1D np array into 3D np array
 def convert_to_image(arr, image_shape):
-    image = np.zeros(image_shape)
-    counter = 0
+    if len(arr.shape) == 2:
+        return np.array([arr])
+    elif len(arr.shape) < 2:
+        image = np.zeros(image_shape)
+        counter = 0
 
-    for z in range(image_shape[0]):
-        for y in range(image_shape[1]):
-            for x in range(image_shape[2]):
-                image[z][y][x] = arr[counter]
-                counter+=1
-
+        for z in range(image_shape[0]):
+            for y in range(image_shape[1]):
+                for x in range(image_shape[2]):
+                    image[z][y][x] = arr[counter]
+                    counter+=1
     return image
 
-class ConvolutionalNet:
+class ConvolutionalNet(NeuralNetwork):
     # Args:
     #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
-    def __init__(self, input_shape, layers=None, cost_func=NegativeLogLikelihood):
+    def __init__(self, input_shape, layers=None, cost_function=QuadraticCost):
+        super(ConvolutionalNet,self).__init__("convolutional", cost_function, layers)
         self.input_shape = input_shape
-        self.layer_types = []
-        self.num_layers = 0
-        self.cost_func = cost_func
-        self.layers = []
-        if layers is not None:
-            self.layers = layers
-
-        self.velocity = None
+        self.layer_types=[]
 
     # Adds a new layer to the network
     # Args:
@@ -100,6 +96,12 @@ class ConvolutionalNet:
 
         self.num_layers += 1
         self.layer_types.append(layer_type)
+
+        # Change cost function based on last layer to optimize training
+        if isinstance(self.layers[-1], SoftmaxLayer):
+            self.cost_function=NegativeLogLikelihood
+        else:
+            self.cost_function=QuadraticCost
 
     # Returns the next activation without squashing it
     # Args:
@@ -154,13 +156,13 @@ class ConvolutionalNet:
             fzs_list.append(deepcopy(curr_z))
 
         # Errors for the last layer
-        delta = self.cost_func.delta(fzs_list[-1],
-                                     dzs_list[-1],
-                                     expected_output)
+        delta = self.cost_function.delta(fzs_list[-1],
+                                         dzs_list[-1],
+                                         expected_output)
 
         is_conv = True
-        if self.layer_types[self.num_layers-1] is not "conv" \
-                and self.layer_types[self.num_layers-1] is not "deconv":
+        if self.layer_types[-1] is not "conv" \
+                and self.layer_types[-1] is not "deconv":
             is_conv = False
 
         delta_w = []
@@ -172,7 +174,9 @@ class ConvolutionalNet:
                 if not is_conv:
                     delta = convert_to_image(delta, lyr.get_output_shape())
                     is_conv = True
-
+            elif lt is "dense" or lt is "soft":
+                fzs = flatten_image(fzs)
+                dzs = flatten_image(dzs)
             dw, db, dlt = lyr.backprop(fzs, dzs, delta)
             delta_w.insert(0, dw)
             delta_b.insert(0, db)
@@ -186,41 +190,9 @@ class ConvolutionalNet:
 
     # Updates the network given a specific minibatch (done by averaging gradients over the minibatch)
     # Args:
-    #   step_size - the amount the network should change its parameters by relative to the gradients
-    #   resistance - the factor in which the velocity is multiplied each time
-    #   mini_batch - a list of tuples, (input, expected output)
-
-    def momentum_update_network(self, step_size, resistance, mini_batch):
-        gradient_w, gradient_b = self.backprop(mini_batch[0][0], mini_batch[0][1])
-
-        for inp, outp in mini_batch[1:]:
-            dgw, dgb = self.backprop(inp, outp)
-            gradient_w += dgw
-            gradient_b += dgb
-
-        # Average the gradients
-        gradient_w *= step_size / (len(mini_batch) + 0.00)
-        gradient_b *= step_size / (len(mini_batch) + 0.00)
-
-        if self.velocity is None:
-            self.velocity = np.array([gradient_w, gradient_b])
-        else:
-            self.velocity *= resistance
-            self.velocity += np.array([gradient_w, gradient_b])
-
-        # print "V " + str(self.velocity[0][0])
-        # print "W " + str(self.layers[0].kernels[0].weights)
-        # print "next"
-        # Update weights and biases in opposite direction of gradients
-        for gw, gb, lyr in zip(self.velocity[0], self.velocity[1], self.layers):
-            lyr.update(-gw, -gb)
-
-
-    # Updates the network given a specific minibatch (done by averaging gradients over the minibatch)
-    # Args:
     #   mini_batch - a list of tuples, (input, expected output)
     #   step_size - the amount the network should change its parameters by relative to the gradients
-    def update_network(self, mini_batch, step_size):
+    def update_network(self, step_size, mini_batch, is_momentum_based, friction):
         gradient_w, gradient_b = self.backprop(mini_batch[0][0], mini_batch[0][1])
 
         for inp, outp in mini_batch[1:]:
@@ -232,17 +204,19 @@ class ConvolutionalNet:
         gradient_w *= step_size/(len(mini_batch)+0.00)
         gradient_b *= step_size/(len(mini_batch)+0.00)
 
-        # Update weights and biases in opposite direction of gradients
-        for gw, gb, lyr in zip(gradient_w, gradient_b, self.layers):
-            lyr.update(-gw, -gb)
+        if self.velocity is None:
+            self.velocity = np.array([gradient_w, gradient_b])
+        else:
+            self.velocity *= friction
+            self.velocity += np.array([gradient_w, gradient_b])
 
-    # Evaluates the average cost across the training set
-    def evaluate_cost(self, training_set):
-        total = 0.0
-        for inp, outp in training_set:
-            net_outp = self.feedforward(inp)
-            total += self.cost_func.cost(net_outp, outp)
-        return total/len(training_set)
+        # Update weights and biases in opposite direction of gradients
+        if is_momentum_based:
+            for gw, gb, lyr in zip(gradient_w, gradient_b, self.layers):
+                lyr.update(-gw, -gb)
+        else:
+            for gw, gb, lyr in zip(self.velocity[0], self.velocity[1], self.layers):
+                lyr.update(-gw, -gb)
 
     # Performs SGD on the network
     # Args:
@@ -251,7 +225,8 @@ class ConvolutionalNet:
     #   mini_batch_size - (int), number of training examples per mini batch
     #   training_inputs - (list), the list of training inputs
     #   expected_outputs - (list), the list of expected outputs for each input
-    def stochastic_gradient_descent(self, epochs, step_size, mini_batch_size, training_inputs, expected_outputs):
+    def stochastic_gradient_descent(self, epochs, step_size, mini_batch_size, training_inputs, expected_outputs,
+                                    is_momentum_based=False, friction=0.9):
         training_set = []
         for inp, outp in zip(training_inputs, expected_outputs):
             training_set.append((inp, outp))
@@ -260,35 +235,16 @@ class ConvolutionalNet:
         for ep in range(epochs):
             shuffle(training_set)
             for x in range(0, len(training_set), mini_batch_size):
-                self.update_network(training_set[x:x+mini_batch_size], step_size)
-            # Update with progress
-            print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
+                self.update_network(step_size=step_size,
+                                    mini_batch=training_set[x:x+mini_batch_size],
+                                    is_momentum_based=is_momentum_based,
+                                    friction=friction)
+            # # Update with progress
+            # print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
+            # print "kernel0"
+            # print self.layers[0].kernels[0].weights[0]
+            # print "softweights0"
+            # print self.layers[5].weights[0]
 
-    # Performs momentum based SGD on the network
-    # Args:
-    #   epochs - (int), number of times to loop over the entire batch
-    #   step_size - (float), amount network should change its parameters per update
-    #   resistance - (float), the friction for momentum based descent
-    #   mini_batch_size - (int), number of training examples per mini batch
-    #   training_inputs - (list), the list of training inputs
-    #   expected_outputs - (list), the list of expected outputs for each input
-
-    def momentum_based_sgd(self, epochs, step_size, resistance, mini_batch_size, training_inputs, expected_outputs):
-        training_set = []
-        for inp, outp in zip(training_inputs, expected_outputs):
-            training_set.append((inp, outp))
-
-        # Train
-        for ep in range(epochs):
-            shuffle(training_set)
-            for x in range(0, len(training_set), mini_batch_size):
-                self.momentum_update_network(step_size, resistance, training_set[x:x + mini_batch_size])
-            #self.reset_velocity()
-
-            # Update with progress
-            print("Epoch: %d   Average cost: %f" % (ep + 1, self.evaluate_cost(training_set)))
-        # print ("w")
-        # print self.velocity[0][0][0]
-        # print ("b")
-        # print self.velocity[1][0]
         self.reset_velocity()
+
