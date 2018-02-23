@@ -15,9 +15,35 @@ from functions import Softmax
 from random import shuffle
 from copy import deepcopy
 
-from discriminator import Discriminator
+from convolutional import ConvolutionalNet
 
-class Generator:
+# Makes a 3D np array into a 1D np array
+def flatten_image(image):
+    if len(image.shape) > 1:
+        l = np.array([])
+        for x in image:
+            l = np.concatenate((l, x.ravel()))
+
+        image = l.ravel()
+    return image
+
+# Makes 1D np array into 3D np array
+def convert_to_image(arr, image_shape):
+    if len(arr.shape) == 2:
+        return np.array([arr])
+    elif len(arr.shape) < 2:
+        image = np.zeros(image_shape)
+        counter = 0
+
+        for z in range(image_shape[0]):
+            for y in range(image_shape[1]):
+                for x in range(image_shape[2]):
+                    image[z][y][x] = arr[counter]
+                    counter+=1
+        return image
+    return arr
+
+class Generator (ConvolutionalNet):
     # Args:
     #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
     def __init__(self, input_shape, layers=None):
@@ -28,75 +54,51 @@ class Generator:
         if layers is not None:
             self.layers = layers
 
-    # Adds a new layer to the network
-    # Args:
-    #   layer_type (string) - the type of layer to be added (conv, deconv, dense, soft)
-    #   output_size (tuple/int) optional - the shape of the output for that layer
-    #                   conv (None)
-    #                   deconv (2 tuple): (output height, output length)
-    #   kernel_size (2-tuple) - for conv and deconv layers, (num kernels, kernel height, kernel length)
-    def add(self, layer_type, output_size, kernel_size):
-        # If there are no layers, make the first one
-        input_shape = self.input_shape
-
-        # Use last layer as input shape for new layer if there exists a previous layer
-        if not len(self.layers) == 0:
-            input_shape = self.layers[-1].get_output_shape()
-
-        # Order kernel shape (num kernels, kernel depth, kernel height, kernel length)
-        kernel_shape = (kernel_size[0], input_shape[0], kernel_size[1], kernel_size[2])
-
-        if layer_type is "conv":
-            self.layers.append(ConvLayer(input_shape=input_shape,
-                                         kernel_shape=kernel_shape))
-        elif layer_type is "deconv":
-            # Order output shape (image depth, image height, image length)
-            output_shape = (kernel_size[0], output_size[0], output_size[1])
-            self.layers.append(DeconvLayer(input_shape=input_shape,
-                                           output_shape=output_shape,
-                                           kernel_shape=kernel_shape))
-        self.num_layers += 1
-        self.layer_types.append(layer_type)
-
-    # Returns the next activation without squashing it
-    # Args:
-    #   z_activations - (np arr) the current activations
-    #   layer - the next layer to be used
-    def next_activation(self, z_activations, layer):
-        return layer.get_activations(z_activations)
-
-    # Feeds an input through the network, returning the output
-    # Args: network_input - (np arr) the input
-    def feed_forward(self, network_input):
-        if len(network_input.shape) == 2:
-            network_input = np.array([network_input])
-
-        for lyr in self.layers:
-            network_input = lyr.feed_forward(network_input)
-
-        return network_input
-
     # This function calculates the gradients for one training example
     # Args:
     #   network_input - (np arr) the input being used
     #   discriminator_network (object)
     def backprop(self, network_input, expected_output, discriminator_network):
         curr_z = network_input
-        z_activations = [network_input]
+        fzs_list = [network_input]
+        dzs_list = [network_input]
 
-        for i, lyr in zip(range(1, self.num_layers+1), self.layers):
-            curr_z = lyr.get_activations(curr_z)
-            z_activations.append(deepcopy(curr_z))
-            curr_z = LeakyRELU.func(curr_z)
+        is_conv = False
+        if self.layer_types[0] is "conv" or self.layer_types[0] is "deconv":
+            is_conv = True
 
+        for i, lt, lyr in zip(range(1, self.num_layers + 1), self.layer_types, self.layers):
+            # Squash to 1D np array
+            if lt is not "conv" and lt is not "deconv" and is_conv:
+                is_conv = False
+                curr_z = flatten_image(curr_z)
 
-        delta = discriminator_network.get_delta(deepcopy(curr_z), expected_output)
+            curr_z = lyr.getactivations(curr_z)
+            dzs_list.append(lyr.activation_function.func_deriv(deepcopy(curr_z)))
+
+            curr_z = lyr.activation_function.func(curr_z)
+            fzs_list.append(deepcopy(curr_z))
+
+        delta = discriminator_network.getdeltas(deepcopy(curr_z), expected_output)
+
+        is_conv = True
+        if self.layer_types[-1] is not "conv" \
+                and self.layer_types[-1] is not "deconv":
+            is_conv = False
+
         delta_w = []
         delta_b = []
 
         # Append all the errors for each layer
-        for lyr, zprev in reversed(zip(self.layers, z_activations[:-1])):
-            dw, db, dlt = lyr.backprop(zprev, delta)
+        for lt, lyr, fzs, dzs in reversed(zip(self.layer_types, self.layers, fzs_list[:-1], dzs_list[:-1])):
+            if lt is "conv" or lt is "deconv":
+                if not is_conv:
+                    delta = convert_to_image(delta, lyr.get_output_shape())
+                    is_conv = True
+            elif lt is "dense" or lt is "soft":
+                fzs = flatten_image(fzs)
+                dzs = flatten_image(dzs)
+            dw, db, dlt = lyr.backprop(fzs, dzs, delta)
             delta_w.insert(0, dw)
             delta_b.insert(0, db)
 
@@ -128,8 +130,8 @@ class Generator:
     def evaluate_cost(self, training_set, discriminator_network):
         total = 0.0
         for inp, outp in training_set:
-            net_outp = self.feed_forward(inp)
-            total += discriminator_network.cost_func.cost(discriminator_network.feed_forward(net_outp), outp)
+            net_outp = self.feedforward(inp)
+            total += discriminator_network.cost_function.cost(discriminator_network.feedforward(net_outp), outp)
 
         return total/len(training_set)
 

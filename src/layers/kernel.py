@@ -1,5 +1,20 @@
 import numpy as np
 
+def prev_delta (input_shape, output_shape, dzs, weights, curr_deltas):
+    deltasprev = np.zeros(input_shape)
+    kernelHeight = len(weights)
+    kernelLength = len(weights[0])
+
+    # Loop for each step
+    for y in range(output_shape[0]):
+        for x in range(output_shape[1]):
+            d = curr_deltas[y][x]
+
+            deltasprev[y:y + kernelHeight, x:x + kernelLength] += d * np.multiply(weights,
+                                                                                  dzs[y:y + kernelHeight,
+                                                                                  x:x + kernelLength])
+    return deltasprev
+
 # Returns the weight errors, bias error, and layer errors given a 2D image for the previous layer
 # Args:
 #   in_shape (tuple) - (original image height, original image length)
@@ -10,19 +25,12 @@ import numpy as np
 #   bias (float) - kernel bias
 #   curr_deltas (2D np arr) - errors of current layer (with out_shape shape)
 def prev_errors (input_shape, output_shape, fzs, dzs, weights, bias, curr_deltas):
-    deltasprev = np.zeros(input_shape)
+    deltasprev = prev_delta(input_shape, output_shape, dzs, weights, curr_deltas)
+
     kernelHeight = len(weights)
     kernelLength = len(weights[0])
 
     weightDeltas = np.zeros((kernelLength,kernelHeight))
-
-    # Loop for each step
-    for y in range(output_shape[0]):
-        for x in range(output_shape[1]):
-            d = curr_deltas[y][x]
-
-            deltasprev[y:y+kernelHeight,x:x+kernelLength] += d*np.multiply(weights,
-                                                                           dzs[y:y+kernelHeight,x:x+kernelLength])
 
     # Loop kernel across image to calculate grad_w
     for y in range(output_shape[0]-kernelHeight+1):
@@ -82,13 +90,25 @@ class Kernel:
         biasDelta = 0.0
 
         for w, fzs, dzs in zip(self.weights, prev_fz_activations, d_prev_z_activations):
-            w_err, b_err, d_err = prev_errors(input_shape[1:], output_shape[1:],
-                                  fzs, dzs, w, self.bias, curr_deltas)
+            w_err, b_err, d_err = prev_errors(input_shape[1:],
+                                              output_shape[1:],
+                                              fzs,
+                                              dzs,
+                                              w,
+                                              self.bias,
+                                              curr_deltas)
             deltaPrevs.append(d_err)
             weightDeltas.append(w_err)
             biasDelta += b_err
 
         return np.array(weightDeltas), np.array(biasDelta), np.array(deltaPrevs)
+
+    def getdeltas(self, input_shape, output_shape, d_prev_z_activations, curr_deltas):
+        deltaPrevs = []
+        for w, dzs in zip(self.weights, d_prev_z_activations):
+            w_err, b_err, d_err = prev_delta(input_shape[1:], output_shape[1:], dzs, w, curr_deltas)
+            deltaPrevs.append(d_err)
+        return np.array(deltaPrevs)
 
     # Updates the kernels weights and biases
     #   d_weight (3D np arr) - what to add to the weights

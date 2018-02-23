@@ -55,6 +55,13 @@ class ConvLayer(Layer):
 
         return np.array(kernelWeightDeltas), np.array(kernelBiasDeltas), prevDeltas
 
+    def getdeltas(self, d_prev_z_activations, curr_deltas):
+        prevDeltas = np.zeros(self.input_shape)
+        for k, d in zip(self.kernels, curr_deltas):
+            prevDeltas += k.getdeltas(self.input_shape, self.output_shape, d_prev_z_activations, d)
+
+        return prevDeltas
+
     # Update the kernels
     # Args:
     #   d_weights (4D np arr) - amount to change kernel weights

@@ -1,1 +1,0 @@
-from fullyconnected import FullyConnectedNet

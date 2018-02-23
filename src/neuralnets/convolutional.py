@@ -38,7 +38,8 @@ def convert_to_image(arr, image_shape):
                 for x in range(image_shape[2]):
                     image[z][y][x] = arr[counter]
                     counter+=1
-    return image
+        return image
+    return arr
 
 class ConvolutionalNet(NeuralNetwork):
     # Args:
@@ -240,11 +241,11 @@ class ConvolutionalNet(NeuralNetwork):
                                     is_momentum_based=is_momentum_based,
                                     friction=friction)
             # # Update with progress
-            # print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
-            # print "kernel0"
-            # print self.layers[0].kernels[0].weights[0]
-            # print "softweights0"
-            # print self.layers[5].weights[0]
+            print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
+            print "kernel0"
+            print self.layers[0].kernels[0].weights[0]
+            print "softweights0"
+            print self.layers[4].weights[0]
 
         self.reset_velocity()
 

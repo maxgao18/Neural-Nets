@@ -1,13 +1,14 @@
 from neuralnets import ConvolutionalNet as CNN
 import numpy as np
-from storenets import save
+#from storenets import save
 
-inp = [np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,1])])]),
+inp = [np.array([np.array([np.array([1, 1,1]),np.array([1,1,1]),np.array([1,1,1])])]),
        np.array([np.array([np.array([1,1,1]),np.array([1,1,1]),np.array([1,1,0])])]),
        np.array([np.array([np.array([1, 0, 1]), np.array([1, 1, 1]), np.array([1, 1, 0])])]),
        np.array([np.array([np.array([1, 0, 1]), np.array([1, 1, 0]), np.array([1, 1, 0])])]),
        np.array([np.array([np.array([1, 0, 1]), np.array([1, 0, 0]), np.array([1, 1, 0])])]),
        np.array([np.array([np.array([0, 0, 0]), np.array([0, 0, 1]), np.array([1, 1, 0])])])]
+#inp = [np.array([np.random.randn(5,5)]) for x in range(6)]
 outp = [np.array([0,0,0,0,0,1]),
         np.array([0,0,0,0,1,0]),
         np.array([0,0,0,1,0,0]),
@@ -36,8 +37,8 @@ np.set_printoptions(precision=8)
 np.set_printoptions(suppress=True)
 
 cnn = CNN(input_shape=(1, 3, 3))
-cnn.add(layer_type="conv", output_size=None, kernel_size=(1, 1, 1))
 cnn.add(layer_type="conv", output_size=None, kernel_size=(3, 2, 2))
+#cnn.add(layer_type="conv", output_size=None, kernel_size=(3, 2, 2))
 cnn.add(layer_type="deconv", output_size=(3,3), kernel_size=(1, 2, 2))
 cnn.add(layer_type="deconv", output_size=(5,5), kernel_size=(3, 2, 2))
 cnn.add(layer_type="dense", output_size=10)
@@ -55,15 +56,15 @@ for x in range (10000):
     ss = 0.05
     if x%20 == 39:
         ss *= 0.9
-    cnn.stochastic_gradient_descent(epochs=100,
+    cnn.stochastic_gradient_descent(epochs=5,
                                     step_size=0.001,
                                     mini_batch_size=80,
                                     training_inputs=training_inputs,
                                     expected_outputs=training_outputs,
                                     is_momentum_based=True,
-                                    friction=0.9)
-    # for i in inp:
-    #     print(cnn.feedforward(i))
+                                    friction=0.5)
+    for i in inp:
+        print(cnn.feedforward(i))
     # print cnn.layers[0].kernels[0].weights[0]
     # print cnn.layers[5].weights[0][0]
     #save("test", cnn)

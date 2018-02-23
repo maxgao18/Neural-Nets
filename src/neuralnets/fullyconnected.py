@@ -1,6 +1,6 @@
 import random
 import math
-import functions as fn
+import fullyconnected_functions as fn
 import numpy as np
 
 # -- Class for the neural network

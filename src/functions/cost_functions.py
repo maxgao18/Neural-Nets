@@ -8,6 +8,8 @@ class QuadraticCost:
 
     @staticmethod
     def delta (network_output, z_activation_deriv, expected_output):
+        if expected_output.dtype == np.int:
+            expected_output = np.asfarray(expected_output, dtype='float')
         return 0.5*(np.power(network_output-expected_output, 2)*z_activation_deriv)
 
 # Optimized with softmax
@@ -23,6 +25,8 @@ class NegativeLogLikelihood:
 
     @staticmethod
     def delta (network_output, z_activation_deriv, expected_output):
+        if expected_output.dtype == np.int:
+            expected_output = np.asfarray(expected_output, dtype='float')
         return network_output-expected_output
         #return -(expected_output/network_output)*z_activation_deriv
 

@@ -99,3 +99,16 @@ class DeconvLayer(ConvLayer):
         prevDeltas = unpad(prevDeltas, self.input_shape, self.padded_to_input)
 
         return np.array(kernelWeightDeltas), np.array(kernelBiasDeltas), prevDeltas
+
+    def getdeltas(self, d_prev_z_activations, curr_deltas):
+        prevDeltas = np.zeros(self.padded_image_shape)
+        for k, d in zip(self.kernels, curr_deltas):
+            d_prev_z_activations = pad(d_prev_z_activations, self.padded_image_shape, self.input_to_padded)
+            prevDeltas += k.getdeltas(input_shape=self.padded_image_shape,
+                                     output_shape=self.output_shape,
+                                     d_prev_z_activations=d_prev_z_activations,
+                                     curr_deltas=d)
+
+        prevDeltas = unpad(prevDeltas, self.input_shape, self.padded_to_input)
+
+        return prevDeltas

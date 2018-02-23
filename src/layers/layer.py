@@ -27,3 +27,7 @@ class Layer(object):
     @abstractmethod
     def backprop(self, prev_fz_activations, d_prev_z_activations, curr_deltas):
         pass
+
+    @abstractmethod
+    def getdeltas(self, d_prev_z_activations, curr_deltas):
+        pass

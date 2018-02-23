@@ -1,7 +1,7 @@
 from generator import Generator
 from discriminator import Discriminator
 
-class GAN:
+class GAN (NeuralNetwork):
     # Args:
     #   image_shape (3 tuple) - the shape of the image desired to be created by the generator
     #                               and inputted into the discriminator (image depth, image height, image length)

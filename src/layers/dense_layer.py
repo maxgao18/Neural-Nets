@@ -35,10 +35,14 @@ class DenseLayer(Layer):
     def backprop (self, prev_fz_activations, d_prev_z_activations, curr_deltas):
         biasDeltas = curr_deltas
 
-        prevDeltas = np.dot(self.weights.transpose(), curr_deltas) * d_prev_z_activations
+        prevDeltas = self.getdeltas(d_prev_z_activations, curr_deltas)
         weightDeltas = np.dot(np.array([curr_deltas]).transpose(), np.array([prev_fz_activations]))
 
         return weightDeltas, biasDeltas, prevDeltas
+
+    def getdeltas(self, d_prev_z_activations, curr_deltas):
+        prevDeltas = np.dot(self.weights.transpose(), curr_deltas) * d_prev_z_activations
+        return prevDeltas
 
     # Updates layers parameters
     # Args:
