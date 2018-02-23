@@ -2,6 +2,7 @@ from conv_layer import ConvLayer
 import numpy as np
 
 from functions import LeakyRELU
+from functions import RELU
 
 # Pads an image with zeros given a mapping
 # Args:
@@ -30,7 +31,7 @@ class DeconvLayer(ConvLayer):
     #   input_shape (3 tuple (ints)) - (image depth, image height, image length)
     #   output_shape (3 tuple (ints)) - the expected output image shape (same format as image_shape)
     #   kernel_shape (4 tuple (ints)) - (num kernels, kernel depth, kernel height, kernel length)
-    def __init__(self, input_shape, output_shape, kernel_shape, kernels=None, activation_function=LeakyRELU):
+    def __init__(self, input_shape, output_shape, kernel_shape, kernels=None, activation_function=RELU):
         super(DeconvLayer, self).__init__(input_shape, kernel_shape, kernels, activation_function)
         self.output_shape = output_shape
 

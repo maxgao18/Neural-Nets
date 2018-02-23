@@ -1,5 +1,6 @@
 import numpy as np
 from functions import LeakyRELU
+from functions import RELU
 from layer import Layer
 
 class DenseLayer(Layer):
@@ -7,7 +8,7 @@ class DenseLayer(Layer):
     #   layer_shape - a 2-tuple of ints (number of neurons on current layer, number of neurons on previous layer)
     #   weights (optional) - a 2D np array of the weights
     #   biases (optional) a 1D np array of the biases
-    def __init__(self, input_shape, output_shape, weights=None, biases=None, activation_function=LeakyRELU):
+    def __init__(self, input_shape, output_shape, weights=None, biases=None, activation_function=RELU):
         super(DenseLayer,self).__init__(input_shape=input_shape,
                                         output_shape=output_shape,
                                         activation_function=activation_function)

@@ -3,12 +3,13 @@ from kernel import Kernel
 from layer import Layer
 
 from functions import LeakyRELU
+from functions import RELU
 
 class ConvLayer(Layer):
     # Args:
     #   input_shape (3 tuple (ints)) - (input depth, input height, input length)
     #   kernel_shape (4 tuple (ints)) - (num kernels, kernel depth, kernel height, kernel length)
-    def __init__(self, input_shape, kernel_shape, kernels=None, activation_function=LeakyRELU):
+    def __init__(self, input_shape, kernel_shape, kernels=None, activation_function=RELU):
         super(ConvLayer, self).__init__(input_shape=input_shape,
                                         output_shape=(kernel_shape[0],
                                                       input_shape[1]-kernel_shape[2]+1,
