@@ -10,7 +10,7 @@ from layers import SoftmaxLayer
 from functions import QuadraticCost
 from functions import NegativeLogLikelihood
 
-from neural_network import NeuralNetwork
+from convolutional_framework import ConvolutionalFramework
 
 from random import shuffle
 from copy import deepcopy
@@ -41,95 +41,13 @@ def convert_to_image(arr, image_shape):
         return image
     return arr
 
-class ConvolutionalNet(NeuralNetwork):
+class ConvolutionalNet(ConvolutionalFramework):
     # Args:
     #   input_shape (tuple) - the shape of the input (for images: (image depth, image height, image length))
     def __init__(self, input_shape, layers=None, cost_function=QuadraticCost):
         super(ConvolutionalNet,self).__init__("convolutional", cost_function, layers)
         self.input_shape = input_shape
         self.layer_types=[]
-
-    # Adds a new layer to the network
-    # Args:
-    #   layer_type (string) - the type of layer to be added (conv, deconv, dense, soft)
-    #   output_size (tuple/int) optional - the shape of the output for that layer
-    #                   conv (None)
-    #                   deconv (2 tuple): (output height, output length)
-    #                   dense and softmax (int): num of neurons on the layer
-    #   kernel_size (2-tuple) optional - for conv and deconv layers, (num kernels, kernel height, kernel length)
-    def add(self, layer_type, output_size=None, kernel_size=None):
-        # If there are no layers, make the first one
-        input_shape = self.input_shape
-        is_first_layer = True
-
-        # Use last layer as input shape for new layer if there exists a previous layer
-        if not len(self.layers) == 0:
-            input_shape = self.layers[-1].get_output_shape()
-            is_first_layer = False
-
-        if layer_type is "conv" or layer_type is "deconv":
-            # Order kernel shape (num kernels, kernel depth, kernel height, kernel length)
-            kernel_shape = (kernel_size[0], input_shape[0], kernel_size[1], kernel_size[2])
-
-            if layer_type is "conv":
-                self.layers.append(ConvLayer(input_shape=input_shape,
-                                             kernel_shape=kernel_shape))
-            elif layer_type is "deconv":
-                # Order output shape (image depth, image height, image length)
-                output_shape = (kernel_size[0], output_size[0], output_size[1])
-                self.layers.append(DeconvLayer(input_shape=input_shape,
-                                               output_shape=output_shape,
-                                               kernel_shape=kernel_shape))
-        elif layer_type is "dense" or layer_type is "soft":
-            # Assume last layer was softmax or dense
-            num_prev_neurons = input_shape
-            # If it is a deconv or conv, calculate number of previous neurons
-            if not is_first_layer:
-                if self.layer_types[-1] is "conv" or self.layer_types[-1] is "deconv":
-                    num_prev_neurons = input_shape[0]*input_shape[1]*input_shape[2]
-
-            if layer_type is "dense":
-                self.layers.append(DenseLayer(input_shape=num_prev_neurons,
-                                              output_shape=output_size))
-            elif layer_type is "soft":
-                self.layers.append(SoftmaxLayer(input_shape=num_prev_neurons,
-                                                output_shape=output_size))
-
-        self.num_layers += 1
-        self.layer_types.append(layer_type)
-
-        # Change cost function based on last layer to optimize training
-        if isinstance(self.layers[-1], SoftmaxLayer):
-            self.cost_function=NegativeLogLikelihood
-        else:
-            self.cost_function=QuadraticCost
-
-    # Returns the next activation without squashing it
-    # Args:
-    #   z_activations - (np arr) the current activations
-    #   layer - the next layer to be used
-    def next_activation(self, z_activations, layer):
-        return layer.getactivations(z_activations)
-
-    # Feeds an input through the network, returning the output
-    # Args: network_input - (np arr) the input
-    def feedforward(self, network_input):
-        is_conv = False
-        if self.layer_types[0] == "conv" or self.layer_types[0] == "deconv":
-            is_conv = True
-            if len(network_input.shape) == 2:
-                network_input = np.array([network_input])
-
-
-        for lt, lyr in zip(self.layer_types, self.layers):
-            # Squash to 1D np array
-            if lt is not "conv" and lt is not "deconv" and is_conv:
-                is_conv = False
-                network_input = flatten_image(network_input)
-
-            network_input = lyr.feedforward(network_input)
-
-        return network_input
 
     # This function calculates the gradients for one training example
     # Args:
@@ -186,9 +104,6 @@ class ConvolutionalNet(NeuralNetwork):
 
         return np.array(delta_w), np.array(delta_b)
 
-    def reset_velocity(self):
-        self.velocity = None
-
     # Updates the network given a specific minibatch (done by averaging gradients over the minibatch)
     # Args:
     #   mini_batch - a list of tuples, (input, expected output)
@@ -213,10 +128,10 @@ class ConvolutionalNet(NeuralNetwork):
 
         # Update weights and biases in opposite direction of gradients
         if is_momentum_based:
-            for gw, gb, lyr in zip(gradient_w, gradient_b, self.layers):
+            for gw, gb, lyr in zip(self.velocity[0], self.velocity[1], self.layers):
                 lyr.update(-gw, -gb)
         else:
-            for gw, gb, lyr in zip(self.velocity[0], self.velocity[1], self.layers):
+            for gw, gb, lyr in zip(gradient_w, gradient_b, self.layers):
                 lyr.update(-gw, -gb)
 
     # Performs SGD on the network
@@ -242,10 +157,10 @@ class ConvolutionalNet(NeuralNetwork):
                                     friction=friction)
             # # Update with progress
             print("Epoch: %d   Average cost: %f" % (ep+1, self.evaluate_cost(training_set)))
-            print "kernel0"
-            print self.layers[0].kernels[0].weights[0]
-            print "softweights0"
-            print self.layers[4].weights[0]
+            # print "kernel0"
+            # print self.layers[0].kernels[0].weights[0]
+            # print "softweights0"
+            # print self.layers[4].weights[0]
 
         self.reset_velocity()
 

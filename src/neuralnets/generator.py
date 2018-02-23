@@ -109,7 +109,7 @@ class Generator (ConvolutionalNet):
     # Updates the network given a specific minibatch (done by averaging gradients over the minibatch)
     # Args:
     #   mini_batch - a list of np arrays (inputs)
-    #   step_size - the amount the network should change its parameters by relative to the gradients
+    #   step_size - the amount the network should change its parameter`s by relative to the gradients
     def update_network(self, mini_batch, step_size, discriminator_network):
         gradient_w, gradient_b = self.backprop(mini_batch[0][0], mini_batch[0][1], discriminator_network)
 
